@@ -974,6 +974,9 @@ class EdgarRenderer(Cntlr.Cntlr):
                             for filepath in report.filepaths: # may be multi-document IXDS (even in different directories)
                                 _xbrldir = os.path.dirname(filepath)
                                 for reportedFile in sorted(report.reportedFiles):
+                                    if reportedFile[-5:] == '.xbrl' and filing.entrypointfiles[0]['file'][-5:] == '.json':
+                                        # OIM loader changes the modelXbrl entry name to .xbrl, change it back.
+                                        reportedFile = reportedFile[:-5]+'.json'
                                     if reportedFile not in xbrlZip.namelist():
                                         if filesource.isArchive and reportedFile in filesource.dir:
                                             _filepath = os.path.join(filesource.baseurl, reportedFile)
