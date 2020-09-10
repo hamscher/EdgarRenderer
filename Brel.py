@@ -33,7 +33,27 @@ ElementDepthFirstIterator = lxml.etree.ElementDepthFirstIterator
 """
 replacements for arelle
 """
+import arelle
+from arelle import (XbrlConst)
 
+# name spaces
+xbrli = arelle.XbrlConst.xbrli
+link = arelle.XbrlConst.link
+xlink = arelle.XbrlConst.xlink
+
+# arc roles
+summationItem = arelle.XbrlConst.summationItem
+parentChild = arelle.XbrlConst.parentChild
+conceptLabel = arelle.XbrlConst.conceptLabel
+conceptReference = arelle.XbrlConst.conceptReference
+
+# roles
+defaultLinkRole = arelle.XbrlConst.defaultLinkRole
+documentationLabel = arelle.XbrlConst.documentationLabel
+
+# q names
+qnIXbrl11Hidden = arelle.XbrlConst.qnIXbrl11Hidden
+qnXbrliIdentifier = arelle.XbrlConst.qnXbrliIdentifier
 
 """
 is the class even needed?

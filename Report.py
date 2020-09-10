@@ -15,22 +15,13 @@ matplotlib_use("Agg")
 
 import os, re, datetime, decimal, io, time
 from collections import defaultdict
-
 from . import Brel as brel
-Element = brel.Element
 SubElement = brel.SubElement
-XSLT = brel.XSLT
-treeToString = brel.treeToString
 
-from matplotlib.pyplot import figure, cm
-from matplotlib import __version__ as matplotlib__version__
-from matplotlib import pyplot
-
-from arelle.XbrlConst import qnIXbrl11Hidden, xlink, defaultLinkRole, conceptReference, documentationLabel
 from . import Utils
 Filing = None
 
-xlinkRole = '{' + xlink + '}role' # constant belongs in XbrlConsts`headingList
+xlinkRole = '{' + brel.xlink + '}role' # constant belongs in XbrlConsts`headingList
 
 class Report(object):
     def __init__(self, filing, cube, embedding):
@@ -56,7 +47,7 @@ class Report(object):
 
         self.RoundingOption = None
 
-        self.rootETree = Element('InstanceReport', nsmap={'xsi' : 'http://www.w3.org/2001/XMLSchema-instance'})
+        self.rootETree = brel.Element('InstanceReport', nsmap={'xsi' : 'http://www.w3.org/2001/XMLSchema-instance'})
         self.columnsETree = SubElement(self.rootETree, 'Columns') # children added later
         self.rowsETree = SubElement(self.rootETree, 'Rows') # children added later
 
@@ -1113,7 +1104,7 @@ class Report(object):
                     fact = None
                     if cell is not None and not getattr(cell.column,'isHidden',False): fact = cell.fact
                     if (fact is not None and fact.xValid and \
-                        (qnIXbrl11Hidden not in fact.ancestorQnames)):
+                        (brel.qnIXbrl11Hidden not in fact.ancestorQnames)):
                         doc = fact.document
                         ref = None
                         if (doc is not None): ref = doc.basename
@@ -1147,7 +1138,7 @@ class Report(object):
     def writeXmlFile(self, baseNameBeforeExtension, tree, reportSummary):
         baseName = baseNameBeforeExtension + '.xml'
         reportSummary.xmlFileName = baseName
-        xmlText = treeToString(tree, xml_declaration=True, encoding='utf-8', pretty_print=True)
+        xmlText = brel.treeToString(tree, xml_declaration=True, encoding='utf-8', pretty_print=True)
         if self.filing.reportZip:
             self.filing.reportZip.writestr(baseName, xmlText)
             self.controller.renderedFiles.add(baseName)
@@ -1162,9 +1153,9 @@ class Report(object):
             ((self.filing.transform, self.filing.fileNameBase),) + (
             ((self.filing.transformDissem, self.filing.dissemFileNameBase),) if self.filing.transformDissem else ())):
             _startedAt = time.time()
-            result = _transform(tree, asPage=XSLT.strparam('true'))
+            result = _transform(tree, asPage=brel.XSLT.strparam('true'))
             self.controller.logDebug("R{} htm XSLT {:.3f} secs.".format(self.cube.fileNumber, time.time() - _startedAt))
-            htmlText = treeToString(result,method='html',with_tail=False,pretty_print=True,encoding='us-ascii')
+            htmlText = brel.treeToString(result,method='html',with_tail=False,pretty_print=True,encoding='us-ascii')
             if self.filing.reportZip:
                 self.filing.reportZip.writestr(baseName, htmlText)
                 self.controller.renderedFiles.add(baseName)
@@ -1204,6 +1195,8 @@ class Report(object):
             return None
         factList = sorted(factList, key=lambda thing: thing[0]) # sorts by year
 
+        from matplotlib.pyplot import figure, cm
+        from matplotlib import __version__ as matplotlib__version__
 
         # Determine array sizes depending on input data set    
         topOfGradientColor = cm.colors.hex2color('#B5DBEF')
@@ -1473,12 +1466,12 @@ class Row(object):
                 typeQname = str(concept.typeQname)
                 simpleDataType = self.simpleDataType(concept)
                 for lang in ('en-US','en','en-GB'): # WcH 7/14/2017 look for both languages
-                    thedoclabel = concept.label(preferredLabel=documentationLabel, fallbackToQname=False,lang=lang,linkrole=defaultLinkRole)
+                    thedoclabel = concept.label(preferredLabel=brel.documentationLabel, fallbackToQname=False,lang=lang,linkrole=brel.defaultLinkRole)
                     if thedoclabel is not None:
                         doclabel = thedoclabel
                         break
                 references = []
-                relationshipList = concept.modelXbrl.relationshipSet(conceptReference).fromModelObject(concept)
+                relationshipList = concept.modelXbrl.relationshipSet(brel.conceptReference).fromModelObject(concept)
                 def arbitrarykey(x):
                     return x.sourceline
                 relationshipList.sort(key=arbitrarykey)
@@ -1609,7 +1602,6 @@ class Column(object):
 
         labelsETree = SubElement(columnETree, 'Labels')
         for index, header in enumerate(self.headingList):
-            #SubElement(labelsETree, 'Label', Key='', Id=str(index), Label=str(header))
             SubElement(labelsETree, 'Label', Id=str(index), Label=str(header))
 
         otherAxisOnCols = any(fam.pseudoAxisName not in {'period', 'unit', 'primary'} for fam in self.factAxisMemberGroup.factAxisMemberColList)
@@ -1850,6 +1842,7 @@ class Cell(object):
                         self.filing.controller.writeFile(os.path.join(self.filing.fileNameBase, pngname), file.read())
                     file.close()
                     del file  # dereference
+                from matplotlib import pyplot
                 pyplot.close(fig)
                 self.filing.controller.logDebug('Barchart {} inserted into {} Generated Figures={}'.format(
                                          embedding.cube.linkroleUri, report.cube.linkroleUri, report.controller.nextBarChartFileNum))

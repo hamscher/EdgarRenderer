@@ -20,7 +20,6 @@ from arelle.ModelObject import ModelObject
 from arelle.XmlUtil import collapseWhitespace
 from arelle.XmlValidate import VALID, VALID_NO_CONTENT
 
-
 from . import Cube, Embedding, Report, PresentationGroup, Summary, Utils, Xlout
 
 def mainFun(controller, modelXbrl, outputFolderName):  

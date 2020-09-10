@@ -10,7 +10,6 @@ import sys, traceback, os.path, re, math, io, logging
 from collections import defaultdict
 from . import Brel as brel
 
-import arelle.XbrlConst
 import arelle.ModelDocument
 from arelle.ModelDtsObject import ModelConcept, ModelResource
 from . import IoManager, Utils
@@ -391,7 +390,7 @@ class InstanceSummary(object):
             elif doc.xmlRootElement.localName == 'linkbase':
                 self.otherXbrlFiles += [f]   
                 doctype = 'linkbase'
-                for child in doc.xmlRootElement.iterchildren('{'+arelle.XbrlConst.link+'}*'):
+                for child in doc.xmlRootElement.iterchildren('{'+brel.link+'}*'):
                     if child.localName.endswith('Link'):
                         doctype = child.localName
                         if (isLocal):
@@ -438,7 +437,7 @@ class InstanceSummary(object):
                 if fact.concept is not None: conceptInUseSet.add(fact.concept)
                 if fact.context is not None: contextsInUseSet.add(fact.context)
                 if fact.unit is not None: unitsInUseSet.add(fact.unit)
-                if arelle.XbrlConst.qnIXbrl11Hidden in fact.ancestorQnames: 
+                if brel.qnIXbrl11Hidden in fact.ancestorQnames: 
                     hiddenSet.add(fact)                    
                         
         for c in contextSet:
@@ -446,7 +445,7 @@ class InstanceSummary(object):
                 segmentSet.update([(s.dimension,s.member)])
                 if s.dimension is not None: conceptInUseSet.add(s.dimension)
                 if s.member is not None: conceptInUseSet.add(s.member)
-            entitySet.update({itag.text for itag in c.iter(tag=arelle.XbrlConst.qnXbrliIdentifier.clarkNotation)})
+            entitySet.update({itag.text for itag in c.iter(tag=brel.qnXbrliIdentifier.clarkNotation)})
         
         for context in contextsInUseSet:
             entityInUseSet.add(context.entityIdentifier)
@@ -485,7 +484,7 @@ class InstanceSummary(object):
             self.roleDefinitionDict[r.role] = r.longName
             
         # Consider a concept in use if it appears as a fact or in a context explicitMember.
-        summationItemRelationshipSet = modelXbrl.relationshipSet(arelle.XbrlConst.summationItem)
+        summationItemRelationshipSet = modelXbrl.relationshipSet(brel.summationItem)
         summationItemRelationshipSet.loadModelRelationshipsTo()
         summationItemRelationshipSet.loadModelRelationshipsFrom()        
         
@@ -494,7 +493,7 @@ class InstanceSummary(object):
         conceptInUseSet = conceptInUseSet.union({concept for concept in summationItemRelationshipSet.modelRelationshipsFrom.keys()})
         conceptInUseSet = conceptInUseSet.union({concept for concept in summationItemRelationshipSet.modelRelationshipsTo.keys()})
         
-        parentChildRelationshipSet = modelXbrl.relationshipSet(arelle.XbrlConst.parentChild)
+        parentChildRelationshipSet = modelXbrl.relationshipSet(brel.parentChild)
         parentChildRelationshipSet.loadModelRelationshipsTo()
         parentChildRelationshipSet.loadModelRelationshipsFrom()       
         
@@ -504,10 +503,10 @@ class InstanceSummary(object):
         conceptInUseSet = conceptInUseSet.union({concept for concept in parentChildRelationshipSet.modelRelationshipsTo.keys() if isinstance(concept,ModelConcept)})
 
         # Do not add a concept just because it has a label or a reference.
-        conceptLabelRelationshipSet = modelXbrl.relationshipSet(arelle.XbrlConst.conceptLabel)
+        conceptLabelRelationshipSet = modelXbrl.relationshipSet(brel.conceptLabel)
         conceptLabelRelationshipSet.loadModelRelationshipsFrom()        
                       
-        conceptReferenceRelationshipSet = modelXbrl.relationshipSet(arelle.XbrlConst.conceptReference)
+        conceptReferenceRelationshipSet = modelXbrl.relationshipSet(brel.conceptReference)
         conceptReferenceRelationshipSet.loadModelRelationshipsFrom()     
         conceptReferenceRelationshipSet.loadModelRelationshipsTo()
 

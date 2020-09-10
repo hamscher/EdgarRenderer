@@ -8,7 +8,8 @@ are not subject to domestic copyright protection. 17 U.S.C. 105.
 """
 import re, sys, math, logging
 from decimal import Decimal
-from arelle.XbrlConst import xbrli
+from . import Brel as brel
+
 
 durationStartRoleError = "durationStartRoleError"  # fake role URI to indicate that a periodStart label role was put on a duration concept.
 durationEndRoleError = "durationEndRoleError"  # fake role URI to indicate that a periodEnd label role was put on a duration concept.
@@ -295,11 +296,11 @@ def isDurationStringItemTypeQname(typeQname):
 
 def isPureItemTypeQname(typeQname):
     """(bool) -- True if the type qname is xbrli:perShareItemType"""
-    return typeQname.localName == 'pureItemType' and typeQname.namespaceURI == xbrli
+    return typeQname.localName == 'pureItemType' and typeQname.namespaceURI == brel.xbrli
 
 def isDurationItemTypeQname(typeQname):
     """(bool) -- True if the type qname is xbrli:durationItemType"""
-    return typeQname.localName == 'durationItemType' and typeQname.namespaceURI == xbrli
+    return typeQname.localName == 'durationItemType' and typeQname.namespaceURI == brel.xbrli
 
 def modelRelationshipsTransitiveFrom(relationshipSet, concept, linkroleUri, resultSet):
     """Return the subset of a relationship set in the transitive closure starting from concept, limited to linkroleUri."""

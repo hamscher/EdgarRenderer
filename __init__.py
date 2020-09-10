@@ -137,7 +137,6 @@ Required if running under Java (using runtime.exec) on Windows, suggested always
     (to prevent matlib crash under runtime.exe with Java)
         
 """
-from certifi.__main__ import args
 VERSION = '3.20.3'
 
 from builtins import __dict__
