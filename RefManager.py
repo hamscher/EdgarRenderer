@@ -7,11 +7,10 @@ Data and content created by government employees within the scope of their emplo
 are not subject to domestic copyright protection. 17 U.S.C. 105.
 """
 
-import os.path, re, lxml, time
+import os.path, re, time
+from urllib.parse import urlparse,urljoin
+from . import Brel as brel
 import arelle.ModelDocument
-from arelle.FileSource import openFileSource
-from arelle import PythonUtil # define 2.x or 3.x string types
-PythonUtil.noop(0) # Get rid of warning on PythonUtil import
 
 taxonomyManagerFile = 'TaxonomyAddonManager.xml'
 
@@ -27,14 +26,13 @@ class RefManager(object):
 
     def __init__(self,resources):
         managerPath = os.path.join(resources,taxonomyManagerFile)
-        self.tree = lxml.etree.parse(managerPath)
+        self.tree = brel.parse(managerPath)
 
     # method getUrls on CntlrAddOnManager
     # returns: set of strings representing additional linkbases to be loaded.
     # return the set of URLs that must be loaded due to the presence of schemas in the DTS.
     def getUrls(self,modelXbrl): 
         urls = set()
-        from urllib.parse import urlparse,urljoin
         namespacesInFacts = {f.qname.namespaceURI for f in modelXbrl.facts if f.qname is not None}
         for fileUri,doc in modelXbrl.urlDocs.items():
             if doc.targetNamespace in namespacesInFacts:
@@ -63,9 +61,9 @@ class RefManager(object):
                     pass
                 if doc is None:
                     #message = ErrorMgr.getError('UNABLE_TO_LOAD_ADDON_LINKBASE')
-                    modelXbrl.info("info:unableToAddOnLinkbase",
-                                  _("Unable to load add-on linkbase %(linkbase)s."),
-                                  modelObject=modelXbrl.modelDocument, linkbase=url)
+                    modelXbrl.info("info:unableToLoadAddOn",
+                                  _("Unable to load add-on %(url)s."),
+                                  modelObject=modelXbrl.modelDocument, url=url)
                 _numUrls += 1
         finally:
             modelXbrl.modelManager.validateDisclosureSystem = validateDisclosureSystem

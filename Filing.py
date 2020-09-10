@@ -7,21 +7,28 @@ Data and content created by government employees within the scope of their emplo
 are not subject to domestic copyright protection. 17 U.S.C. 105.
 """
 
+from builtins import __dict__
 from gettext import gettext as _
 from collections import defaultdict
-import os, re, math, datetime, dateutil.relativedelta, lxml, sys, time
-import arelle.ModelValue, arelle.XbrlConst
+import os, re, math, datetime, dateutil.relativedelta, time
+from . import Brel as brel
+
+import arelle.XbrlConst
+import arelle.ModelValue
 from arelle.ModelDtsObject import ModelConcept
 from arelle.ModelObject import ModelObject
 from arelle.XmlUtil import collapseWhitespace
 from arelle.XmlValidate import VALID, VALID_NO_CONTENT
-from lxml import etree
+
 
 from . import Cube, Embedding, Report, PresentationGroup, Summary, Utils, Xlout
 
-def mainFun(controller, modelXbrl, outputFolderName):
+def mainFun(controller, modelXbrl, outputFolderName):  
+    # occurs upon <?arelle-unit-test location="EdgarRenderer/Filing.py#mainFun" action="AssertionError"?>
     if "EdgarRenderer/Filing.py#mainFun" in modelXbrl.arelleUnitTests:
-        raise arelle.PythonUtil.pyNamedObject(modelXbrl.arelleUnitTests["EdgarRenderer/Filing.py#mainFun"], "EdgarRenderer/Filing.py#mainFun")
+        action = modelXbrl.arelleUnitTests["EdgarRenderer/Filing.py#mainFun"]
+        objectConstructor = __dict__[action]
+        raise objectConstructor("EdgarRenderer/Filing.py#mainFun")
     _funStartedAt = time.time()
     filing = Filing(controller, modelXbrl, outputFolderName)
     controller.logDebug("Filing initialized {:.3f} secs.".format(time.time() - _funStartedAt)); _funStartedAt = time.time()
@@ -250,16 +257,16 @@ class Filing(object):
 
         if controller.reportXslt:
             _xsltStartedAt = time.time()
-            self.transform = lxml.etree.XSLT(lxml.etree.parse(controller.reportXslt))
+            self.transform = brel.XSLT(brel.parse(controller.reportXslt))
             if controller.reportXsltDissem:
-                self.transformDissem = lxml.etree.XSLT(lxml.etree.parse(controller.reportXsltDissem))
+                self.transformDissem = brel.XSLT(brel.parse(controller.reportXsltDissem))
             else:
                 self.transformDissem = None
             self.controller.logDebug("Excel XSLT transform {:.3f} secs.".format(time.time() - _xsltStartedAt))
         ''' HF: this is not used ??
         if controller.summaryXslt:
             _xsltStartedAt = time.time()
-            self.summary_transform = lxml.etree.XSLT(lxml.etree.parse(controller.summaryXslt))
+            self.summary_transform = brel.XSLT(brel.parse(controller.summaryXslt))
             self.controller.logDebug("Summary XSLT transform {:.3f} secs.".format(time.time() - _xsltStartedAt))
         '''
         self.reportSummaryList = []
@@ -498,7 +505,7 @@ class Filing(object):
 
                 if not isEmbeddedCommand and re.compile('[a-zA-Z-]+:[a-zA-Z]+').match(fact.value):
                     try:
-                        prefix, ignore, localName = fact.value.partition(':')
+                        prefix, _, localName = fact.value.partition(':')
                         namespaceURI = self.modelXbrl.prefixedNamespaces[prefix]
                         qname = arelle.ModelValue.QName(prefix, namespaceURI, localName)
                         if qname in self.modelXbrl.qnameConcepts:
@@ -597,10 +604,10 @@ class Filing(object):
 
     def checkForEmbeddedCommandAndProcessIt(self, fact):
         # partition('~') on a string breaks up a string into a tuple with before the first ~, the ~, and then after the ~. 
-        ignore, tilde, rightOfTilde = fact.value.partition('~')
+        _, tilde, rightOfTilde = fact.value.partition('~')
         if tilde == '':
             return False
-        leftOfTilde, tilde, ignore = rightOfTilde.partition('~')
+        leftOfTilde, tilde, _ = rightOfTilde.partition('~')
         if not tilde or not leftOfTilde or leftOfTilde.isspace():
             return False
         commandText = leftOfTilde
@@ -1051,7 +1058,7 @@ class Filing(object):
 
 
     def strExplainSkippedFacts(self):
-        for fact, role, ignore1, linkroleUri, shortName, definitionText in self.skippedFactsList:
+        for fact, role, _, linkroleUri, shortName, definitionText in self.skippedFactsList:
             if fact in self.unusedFactSet:
                 # we skipped over this fact because it could not be placed
                 # Produce a string explaining for this instant fact why it could not be presented 
@@ -1155,7 +1162,7 @@ class Member(object):
         if typedMember is not None:
             self.typedValue = []
             self.typedKey = []
-            for typedElt in typedMember.iter(etree.Element): # restrict to elements only
+            for typedElt in typedMember.iter(brel.Element): # restrict to elements only
                 self.initTypedElt(typedElt)
             self.typedValue = ", ".join(self.typedValue) # for printing
             typedHash = tuple(self.typedKey) # can only hash a tuple

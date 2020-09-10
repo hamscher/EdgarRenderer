@@ -8,9 +8,11 @@ are not subject to domestic copyright protection. 17 U.S.C. 105.
 
 import sys, traceback, os.path, re, math, io, logging
 from collections import defaultdict
-from lxml.etree import Element, SubElement, ElementDepthFirstIterator
-import arelle.ModelDocument, arelle.ModelDtsObject, arelle.XbrlConst
-from arelle.ModelDtsObject import ModelConcept
+from . import Brel as brel
+
+import arelle.XbrlConst
+import arelle.ModelDocument
+from arelle.ModelDtsObject import ModelConcept, ModelResource
 from . import IoManager, Utils
 
 metaversion = "2.1"
@@ -127,9 +129,9 @@ class Summary(object):
     def buildSummaryETree(self):
         try:
             nsmap = {}  # {'xsi' : 'http://www.w3.org/2001/XMLSchema-instance'}
-            self.rootETree = Element('FilingSummary', nsmap=nsmap)
+            self.rootETree = brel.Element('FilingSummary', nsmap=nsmap)
             self.appendSummaryHeader()
-            self.myReportsETree = SubElement(self.rootETree, 'MyReports')
+            self.myReportsETree = brel.SubElement(self.rootETree, 'MyReports')
             isRR = self.menuStyle == 'RiskReturn'
             for i, instanceSummary in enumerate(self.instanceSummaryList):
                 instanceSummary.appendToFilingSummary(self.myReportsETree, i == 1, isRR, False)
@@ -142,59 +144,59 @@ class Summary(object):
     
     def appendSummaryHeader(self):
         rootETree = self.rootETree
-        SubElement(rootETree, 'Version').text = self.controller.VERSION 
-        SubElement(rootETree, 'ProcessingTime') 
-        SubElement(rootETree, 'ReportFormat').text = self.controller.reportFormat
-        SubElement(rootETree, 'ContextCount').text = str(self.contextCount)        
-        SubElement(rootETree, 'ElementCount').text = str(self.elementCount)        
-        SubElement(rootETree, 'EntityCount').text = str(self.entityCount)  
-        SubElement(rootETree, 'FootnotesReported').text = str(self.footnotesReported).casefold()
-        SubElement(rootETree, 'SegmentCount').text = str(self.segmentCount)
-        SubElement(rootETree, 'ScenarioCount').text = str(self.scenarioCount)
-        SubElement(rootETree, 'TuplesReported').text = str(False).casefold()        
-        SubElement(rootETree, 'UnitCount').text = str(self.unitCount)
+        brel.SubElement(rootETree, 'Version').text = self.controller.VERSION 
+        brel.SubElement(rootETree, 'ProcessingTime') 
+        brel.SubElement(rootETree, 'ReportFormat').text = self.controller.reportFormat
+        brel.SubElement(rootETree, 'ContextCount').text = str(self.contextCount)        
+        brel.SubElement(rootETree, 'ElementCount').text = str(self.elementCount)        
+        brel.SubElement(rootETree, 'EntityCount').text = str(self.entityCount)  
+        brel.SubElement(rootETree, 'FootnotesReported').text = str(self.footnotesReported).casefold()
+        brel.SubElement(rootETree, 'SegmentCount').text = str(self.segmentCount)
+        brel.SubElement(rootETree, 'ScenarioCount').text = str(self.scenarioCount)
+        brel.SubElement(rootETree, 'TuplesReported').text = str(False).casefold()        
+        brel.SubElement(rootETree, 'UnitCount').text = str(self.unitCount)
 
     def appendSummaryFooter(self):
         # The last Report is a placeholder for the concatenation of all reports
         # The concatenation is performed by a javascript function written by Summarize.xslt
-        reportETree = SubElement(self.myReportsETree, 'Report')
-        SubElement(reportETree, 'IsDefault').text = 'false'
-        SubElement(reportETree, 'HasEmbeddedReports').text = 'false'
-        SubElement(reportETree, 'LongName').text = 'All Reports'
-        SubElement(reportETree, 'ReportType').text = 'Book'
-        SubElement(reportETree, 'ShortName').text = 'All Reports'
+        reportETree = brel.SubElement(self.myReportsETree, 'Report')
+        brel.SubElement(reportETree, 'IsDefault').text = 'false'
+        brel.SubElement(reportETree, 'HasEmbeddedReports').text = 'false'
+        brel.SubElement(reportETree, 'LongName').text = 'All Reports'
+        brel.SubElement(reportETree, 'ReportType').text = 'Book'
+        brel.SubElement(reportETree, 'ShortName').text = 'All Reports'
 
         if self.controller.includeLogsInSummary:
             # only output 100 warnings or errors max, after that it's not helpful.
             ''' Replace with cntlr log buffer
             for i, errmsg in enumerate(self.controller.ErrorMsgs):
                 if i == 0:
-                    logs = SubElement(self.rootETree, 'Logs')
+                    logs = brel.SubElement(self.rootETree, 'Logs')
                 if i == 100:
-                    SubElement(logs, 'Log', type='Info').text = "There are more than 100 warnings or errors, only 100 will be displayed."
+                    brel.SubElement(logs, 'Log', type='Info').text = "There are more than 100 warnings or errors, only 100 will be displayed."
                     break
-                SubElement(logs, 'Log', type=errmsg.msgCode.title()).text = errmsg.msg
+                brel.SubElement(logs, 'Log', type=errmsg.msgCode.title()).text = errmsg.msg
             '''
             logHandler = self.controller.cntlr.logHandler
             numShownMessages = 0
             for logRec in getattr(logHandler, "logRecordBuffer") or (): # non buffered handlers don't keep log records (e.g., log to print handler)
                 if logRec.levelno > logging.INFO:
                     if numShownMessages == 0:
-                        logs = SubElement(self.rootETree, 'Logs')
+                        logs = brel.SubElement(self.rootETree, 'Logs')
                         self.controller.summaryHasLogEntries = True
                     if numShownMessages == 100:
-                        SubElement(logs, 'Log', type='Info').text = "There are more than 100 warnings or errors, only 100 will be displayed."
+                        brel.SubElement(logs, 'Log', type='Info').text = "There are more than 100 warnings or errors, only 100 will be displayed."
                         break
                     _text = self.controller.formatLogMessage(logRec)
-                    SubElement(logs, 'Log', type=logRec.levelname.title()).text = _text
+                    brel.SubElement(logs, 'Log', type=logRec.levelname.title()).text = _text
                     numShownMessages += 1
                     self.eTreeLogsElement = logs # for removal on dissem pass if needed
 
-        inputFilesEtree = SubElement(self.rootETree, 'InputFiles')
+        inputFilesEtree = brel.SubElement(self.rootETree, 'InputFiles')
         sourceDict = self.controller.sourceDict
         for l in [self.controller.instanceList, self.controller.inlineList, self.controller.otherXbrlList]:
             for file in l:
-                s = SubElement(inputFilesEtree, 'File')
+                s = brel.SubElement(inputFilesEtree, 'File')
                 if file in sourceDict and sourceDict[file][0] is not None and sourceDict[file][1] is not None: 
                     (doctype, original) = sourceDict[file]
                     s.set('doctype', doctype)
@@ -203,18 +205,18 @@ class Summary(object):
                     s.set('doctype','(Source)')
                     s.set('original', os.path.basename(file))
                 s.text = str(os.path.basename(file))
-        supplementalFilesEtree = SubElement(self.rootETree, 'SupplementalFiles')
+        supplementalFilesEtree = brel.SubElement(self.rootETree, 'SupplementalFiles')
         for file in self.controller.supplementalFileList:
-            SubElement(supplementalFilesEtree, 'File').text = str(file)
-        baseTaxonomiesEtree = SubElement(self.rootETree, 'BaseTaxonomies')
+            brel.SubElement(supplementalFilesEtree, 'File').text = str(file)
+        baseTaxonomiesEtree = brel.SubElement(self.rootETree, 'BaseTaxonomies')
         for ns in self.namespacesInUse:
-            SubElement(baseTaxonomiesEtree,'BaseTaxonomy').text = str(ns)
+            brel.SubElement(baseTaxonomiesEtree,'BaseTaxonomy').text = str(ns)
         hasPresentationLinkbase = next((True for s in self.instanceSummaryList
                                         if s.hasPresentationLinkbase), False)
         hasCalculationLinkbase = next((True for s in self.instanceSummaryList
                                         if s.hasCalculationLinkbase), False)
-        SubElement(self.rootETree, 'HasPresentationLinkbase').text = str(hasPresentationLinkbase).casefold()
-        SubElement(self.rootETree, 'HasCalculationLinkbase').text = str(hasCalculationLinkbase).casefold()
+        brel.SubElement(self.rootETree, 'HasPresentationLinkbase').text = str(hasPresentationLinkbase).casefold()
+        brel.SubElement(self.rootETree, 'HasCalculationLinkbase').text = str(hasCalculationLinkbase).casefold()
 
     def removeSummaryLogs(self):
         if self.eTreeLogsElement is not None:
@@ -515,7 +517,7 @@ class InstanceSummary(object):
             if fromConcept in conceptInUseSet and len(toRels) > 0:
                 for rel in toRels:
                     toReference = rel.toModelObject
-                    if isinstance(toReference, arelle.ModelDtsObject.ModelResource):
+                    if isinstance(toReference, ModelResource):
                         r = []
                         for elt in toReference.iterchildren():
                             s = elt.text
@@ -603,7 +605,7 @@ class InstanceSummary(object):
 
             for h in modelXbrl.ixdsHtmlElements:
                 hiddenQname = None
-                for e in ElementDepthFirstIterator(h):
+                for e in brel.ElementDepthFirstIterator(h):
                     if (e.prefix == 'ix'):
                         if (e.localName =='hidden'):
                             hiddenQname = e. elementQname
@@ -691,24 +693,24 @@ class InstanceSummary(object):
             if not isRR: 
                 state = self.classifyReportFiniteStateMachine(state, reportSummary.longName)
                 parentRole = self.getReportParentIfExists(reportSummary, state)
-            reportETree = SubElement(myReportsEtree, 'Report')
+            reportETree = brel.SubElement(myReportsEtree, 'Report')
             reportETree.set('instance',os.path.basename((self.instanceFiles+self.inlineFiles)[0]))
-            SubElement(reportETree, 'IsDefault').text = str(isFirstInstance and i == 1).casefold()         
-            SubElement(reportETree, 'HasEmbeddedReports').text = str(reportSummary.hasEmbeddedReports).casefold()
+            brel.SubElement(reportETree, 'IsDefault').text = str(isFirstInstance and i == 1).casefold()         
+            brel.SubElement(reportETree, 'HasEmbeddedReports').text = str(reportSummary.hasEmbeddedReports).casefold()
             if reportSummary.htmlFileName is not None:
-                SubElement(reportETree, 'HtmlFileName').text = reportSummary.htmlFileName
-            SubElement(reportETree, 'LongName').text = reportSummary.longName    
+                brel.SubElement(reportETree, 'HtmlFileName').text = reportSummary.htmlFileName
+            brel.SubElement(reportETree, 'LongName').text = reportSummary.longName    
             if 'notes' in reportSummary.shortName.casefold(): reportType = 'Notes'
             else: reportType = 'Sheet'
-            SubElement(reportETree, 'ReportType').text = reportType
-            SubElement(reportETree, 'Role').text = reportSummary.role
-            SubElement(reportETree, 'ShortName').text = reportSummary.shortName
+            brel.SubElement(reportETree, 'ReportType').text = reportType
+            brel.SubElement(reportETree, 'Role').text = reportSummary.role
+            brel.SubElement(reportETree, 'ShortName').text = reportSummary.shortName
             if reportSummary.xmlFileName is not None:
-                SubElement(reportETree, 'XmlFileName').text = reportSummary.xmlFileName
-            SubElement(reportETree, 'MenuCategory').text = state
+                brel.SubElement(reportETree, 'XmlFileName').text = reportSummary.xmlFileName
+            brel.SubElement(reportETree, 'MenuCategory').text = state
             if parentRole is not None:
-                SubElement(reportETree, 'ParentRole').text = parentRole
-            SubElement(reportETree, 'Position').text = str(startPosition + i)
+                brel.SubElement(reportETree, 'ParentRole').text = parentRole
+            brel.SubElement(reportETree, 'Position').text = str(startPosition + i)
 
     # finds parent based on lexicographical similarity.  
     # For instance, "Significant Accounting Policies (Policies)" might

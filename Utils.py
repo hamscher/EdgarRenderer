@@ -7,7 +7,8 @@ Data and content created by government employees within the scope of their emplo
 are not subject to domestic copyright protection. 17 U.S.C. 105.
 """
 import re, sys, math, logging
-import arelle.XbrlConst
+from decimal import Decimal
+from arelle.XbrlConst import xbrli
 
 durationStartRoleError = "durationStartRoleError"  # fake role URI to indicate that a periodStart label role was put on a duration concept.
 durationEndRoleError = "durationEndRoleError"  # fake role URI to indicate that a periodEnd label role was put on a duration concept.
@@ -166,7 +167,6 @@ def handleDuration(valueStr):
     # if value "P10Y to P12Y", we output "10 years to 12 years"
 
     def durationPrettyPrint(matchObj):
-        from decimal import Decimal
         orderedList = [(None if matchObj.group('y') is None else Decimal(matchObj.group('y')), 'year'), \
                        (None if matchObj.group('mon') is None else Decimal(matchObj.group('mon')), 'month'), \
                        (None if matchObj.group('d') is None else Decimal(matchObj.group('d')), 'day'), \
@@ -295,11 +295,11 @@ def isDurationStringItemTypeQname(typeQname):
 
 def isPureItemTypeQname(typeQname):
     """(bool) -- True if the type qname is xbrli:perShareItemType"""
-    return typeQname.localName == 'pureItemType' and typeQname.namespaceURI == arelle.XbrlConst.xbrli
+    return typeQname.localName == 'pureItemType' and typeQname.namespaceURI == xbrli
 
 def isDurationItemTypeQname(typeQname):
     """(bool) -- True if the type qname is xbrli:durationItemType"""
-    return typeQname.localName == 'durationItemType' and typeQname.namespaceURI == arelle.XbrlConst.xbrli
+    return typeQname.localName == 'durationItemType' and typeQname.namespaceURI == xbrli
 
 def modelRelationshipsTransitiveFrom(relationshipSet, concept, linkroleUri, resultSet):
     """Return the subset of a relationship set in the transitive closure starting from concept, limited to linkroleUri."""
@@ -398,4 +398,8 @@ class Errmsg(object):
         self.msgCode = messageCode
         self.msg = message
 
-
+class attrdict(dict):
+    """ utility to simulate an object with named fields from a dict """
+    def __init__(self, *args, **kwargs):
+        dict.__init__(self, *args, **kwargs)
+        self.__dict__ = self

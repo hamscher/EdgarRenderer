@@ -13,7 +13,10 @@ At this moment, Xlout.py requires openpyxl 2.1.4, it does not work with openpyxl
 
 """
 
-import os.path, re, datetime, time, lxml, decimal, collections, openpyxl.cell, openpyxl.styles, openpyxl.utils, openpyxl.worksheet.dimensions
+import os.path, re, datetime, time, decimal, collections, openpyxl.cell, openpyxl.styles, openpyxl.utils, openpyxl.worksheet.dimensions
+from io import BytesIO
+from . import Brel as brel
+
 
 # note that number pattern allows word before number like shares (1,234,567) (but would misfire on same in text block!)
 numberPattern = re.compile(r"\s*[_A-Za-z\xC0-\xD6\xD8-\xF6\xF8-\xFF\u0100-\u02FF\u0370-\u037D\u037F-\u1FFF\u200C-\u200D\u2070-\u218F\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD]*"
@@ -38,7 +41,7 @@ class XlWriter(object):
     def __init__(self, controller, outputFolderName):
         self.controller = controller
         self.outputFolderName = outputFolderName
-        self.simplified_transform = lxml.etree.XSLT(lxml.etree.parse(controller.excelXslt))
+        self.simplified_transform = brel.XSLT(brel.parse(controller.excelXslt))
         self.wb = openpyxl.Workbook()
         self.sheetNames = set() # prevent duplicates
         self.workSheet = None
@@ -60,8 +63,7 @@ class XlWriter(object):
             self.wb.remove(self.wb.worksheets[0])
         if not (self.controller.reportZip or self.outputFolderName is not None):
             return # no report output (just validation)
-        import io
-        file = io.BytesIO()
+        file = BytesIO()
         self.wb.save(file)
         file.seek(0)
         if self.controller.reportZip:
@@ -110,7 +112,7 @@ class XlWriter(object):
             # any <table> element appearing in a textBlock is being dropped.
             # any other html formatting of users' text blocks is pretty much thrown away by this.
             _startedAt = time.time()
-            rdoc = self.simplified_transform(report.rootETree,asPage=lxml.etree.XSLT.strparam('true'),method='html')
+            rdoc = self.simplified_transform(report.rootETree,asPage=brel.XSLT.strparam('true'),method='html')
             self.controller.logDebug("R{} xlout XSLT {:.3f} secs".format(report.cube.fileNumber, time.time() - _startedAt))
             row = 0  # openpyxl changed to 1-offset col numbering in version 2
             widthPerCharacter = 1
@@ -228,7 +230,7 @@ class XlWriter(object):
                                 if rowspan > 1:
                                     mergedAreas[col] = (colspan, row + rowspan - 1)
                                 #text = trTdElt.text_content().strip()
-                                text = ''.join([s for s in trTdElt.itertext(tag=lxml.etree.Element)])
+                                text = ''.join([s for s in trTdElt.itertext(tag=brel.Element)])
                                 textNodes = tryExtractingTextNodes(text)
                                 if textNodes is not None:
                                     text = textNodes
@@ -245,7 +247,7 @@ class XlWriter(object):
                                                                                openpyxl.utils.get_column_letter(col+colspan-1),
                                                                                row+rowspan-1))
                                 col += colspan
-        except (lxml.etree.LxmlError, lxml.etree.XSLTError) as err:
+        except (brel.LxmlError, brel.XSLTError) as err:
             self.controller.logDebug("Internal error in worksheet generation: {}".format(err.args),file='Xlout.py', messageCode="debug")
         except (Exception) as err:
             try: message = err.message
@@ -266,8 +268,8 @@ def tryExtractingTextNodes(text):
         blanks_pat='['+''.join(['\xA0','\x40','\x09',blank])+']+'
         newlines_pat='[ \r\n]*[\r\n][ \r\n]*'
         try:
-            tree = lxml.etree.HTML('<body>'+text+'</body>')
-            plain = ' '.join([x for x in tree.itertext(tag=lxml.etree.Element,with_tail=False)])
+            tree = brel.HTML('<body>'+text+'</body>')
+            plain = ' '.join([x for x in tree.itertext(tag=brel.Element,with_tail=False)])
             plain = re.sub(blanks_pat,blank,plain)
             plain = re.sub(newlines_pat,newline,plain)
             plain = plain.strip('\n')

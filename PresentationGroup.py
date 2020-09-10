@@ -9,8 +9,7 @@ are not subject to domestic copyright protection. 17 U.S.C. 105.
 
 from collections import defaultdict
 from . import Utils
-import arelle.XbrlConst
-
+from arelle.XbrlConst import parentChild, qnLinkPresentationArc, qnLinkPresentationLink
 
 class PresentationGroupNode(object):
     def __init__(self, arelleConcept, arelleRelationship, mayBeUnitConcept, typedValue=None):
@@ -35,7 +34,7 @@ class PresentationGroup(object):
         self.filing = filing
         self.cube = cube
         self.rootNodeList = []
-        self.linkRelationshipSet = self.filing.modelXbrl.relationshipSet(arelle.XbrlConst.parentChild, self.cube.linkroleUri)
+        self.linkRelationshipSet = self.filing.modelXbrl.relationshipSet(parentChild, self.cube.linkroleUri)
         self.unitOrdering = []
         self.relationshipToChildNodeDict = {}
 
@@ -106,7 +105,7 @@ class PresentationGroup(object):
                     #message = ErrorMgr.getError('PRESENTATION_GROUP_DIRECTED_CYCLE_ERROR').format(self.cube.shortName)
                     self.filing.modelXbrl.error("xbrl.5.2.4.2",
                         _("Relationships have a %(cycle)s cycle in arcrole %(arcrole)s \nlink role %(linkrole)s \nlink %(linkname)s, \narc %(arcname)s, \npath %(path)s"),
-                        modelObject=relationship, cycle="directed", arcrole=arelle.XbrlConst.parentChild, arcname=arelle.XbrlConst.qnLinkPresentationArc, linkname=arelle.XbrlConst.qnLinkPresentationLink,
+                        modelObject=relationship, cycle="directed", arcrole=parentChild, arcname=qnLinkPresentationArc, linkname=qnLinkPresentationLink,
                         path = str(concept.qname) + " " + " - ".join(
                             "{0}:{1} {2}".format(rel.modelDocument.basename, rel.sourceline, rel.toModelObject.qname)
                             for rel in reversed(localRelationshipSet)
@@ -283,10 +282,6 @@ class PresentationGroup(object):
                                               modelObject=concept, axis=concept.qname,
                                               linkrole=self.cube.linkroleUri, linkroleDefinition=self.cube.definitionText, linkroleName=self.cube.shortName)
                 self.cube.noFactsOrAllFactsSuppressed = True
-
-
-
-
 
 
     def buildLabel(self, concept, preferredLabel = None):

@@ -7,12 +7,13 @@ Data and content created by government employees within the scope of their emplo
 are not subject to domestic copyright protection. 17 U.S.C. 105.
 """
 
+from . import Brel as brel
 from os import getpid, remove, makedirs, getenv, listdir
 from os.path import basename, isfile, abspath, isdir, dirname, exists, join, splitext, normpath
 from io import IOBase
 import json, re, shutil, sys, datetime, os, zipfile
 import arelle.XbrlConst
-from lxml.etree import tostring as treeToString
+
 from . import Utils
 
 jsonIndent = 1  # None for most compact, 0 for left aligned
@@ -46,15 +47,15 @@ def absPathOnPythonPath(controller, filename):  # if filename is relative, find 
     controller.logDebug("No such location {} found in sys path dirs {}.".format(filename, pathdirs))
     return None
     
-def writeXmlDoc(filing, etree, reportZip, reportFolder, filename):  
-    xmlText = treeToString(etree.getroottree(), method='xml', with_tail=False, pretty_print=True, encoding='utf-8', xml_declaration=True)
+def writeXmlDoc(filing, e, reportZip, reportFolder, filename):  
+    xmlText = brel.treeToString(e.getroottree(), method='xml', with_tail=False, pretty_print=True, encoding='utf-8', xml_declaration=True)
     if reportZip:
         reportZip.writestr(filename, xmlText)  
     elif reportFolder is not None:
         filing.writeFile(os.path.join(reportFolder, filename), xmlText)
     
 def writeHtmlDoc(filing, root, reportZip, reportFolder, filename):
-    htmlText =  treeToString(root, method='html', with_tail=False, pretty_print=True, encoding='utf-8')
+    htmlText =  brel.treeToString(root, method='html', with_tail=False, pretty_print=True, encoding='utf-8')
     if reportZip:
         reportZip.writestr(filename, htmlText)  
     elif reportFolder is not None:
@@ -257,8 +258,6 @@ def isSurvivor(controller, original, base, entry, targetOrStream):  # return boo
 
 
 def getQName(controller, pathname): # return ns, localname, and inline namespace if found
-    from lxml import etree
-
     rootElement = rootNamespace = inlineNamespaceBound = None
     f = None
     try:
@@ -266,13 +265,13 @@ def getQName(controller, pathname): # return ns, localname, and inline namespace
             f = open(pathname)
         else: # stream, already is open
             f = pathname
-        for event, element in etree.iterparse(f.buffer, events=('start','start-ns')):
+        for event, element in brel.iterparse(f.buffer, events=('start','start-ns')):
             if event == 'start-ns':
                 ignore, uri = element
                 if uri in arelle.XbrlConst.ixbrlAll:
                     inlineNamespaceBound = uri
             elif event == 'start':
-                qname = etree.QName(element.tag)
+                qname = brel.QName(element.tag)
                 rootNamespace = qname.namespace
                 rootElement = qname.localname
                 break

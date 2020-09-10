@@ -15,19 +15,27 @@ matplotlib_use("Agg")
 
 import os, re, datetime, decimal, io, time
 from collections import defaultdict
-from lxml.etree import Element, SubElement, XSLT, tostring as treeToString
-import arelle.XbrlConst
+
+from . import Brel as brel
+Element = brel.Element
+SubElement = brel.SubElement
+XSLT = brel.XSLT
+treeToString = brel.treeToString
+
+from matplotlib.pyplot import figure, cm
+from matplotlib import __version__ as matplotlib__version__
+from matplotlib import pyplot
+
+from arelle.XbrlConst import qnIXbrl11Hidden, xlink, defaultLinkRole, conceptReference, documentationLabel
 from . import Utils
 Filing = None
-from arelle.XbrlConst import qnIXbrl11Hidden
 
-
-xlinkRole = '{' + arelle.XbrlConst.xlink + '}role' # constant belongs in XbrlConsts`headingList
+xlinkRole = '{' + xlink + '}role' # constant belongs in XbrlConsts`headingList
 
 class Report(object):
     def __init__(self, filing, cube, embedding):
         global Filing
-        if Filing is None:
+        if Filing is None: # WTF
             from . import Filing
         self.filing = filing
         self.controller = filing.controller
@@ -638,15 +646,15 @@ class Report(object):
                         footnoteNumberSet -= rowOrColSet
 
 
-    def writeFootnoteIndexerEtree(self, footnoteNumberSet, etreeNode):
+    def writeFootnoteIndexerEtree(self, footnoteNumberSet, elt):
         if len(footnoteNumberSet) > 0:
             numberListForDisplayStr = ''
             for number in sorted(footnoteNumberSet):
                 numberListForDisplayStr += '[{!s}],'.format(number)
             numberListForDisplayStr = numberListForDisplayStr[:-1] # "[:-1]" cuts off trailing comma from string
-            SubElement(etreeNode, 'FootnoteIndexer').text = numberListForDisplayStr
+            SubElement(elt, 'FootnoteIndexer').text = numberListForDisplayStr
         else:
-            SubElement(etreeNode, 'FootnoteIndexer') # the stylesheet needs this, even if empty?
+            SubElement(elt, 'FootnoteIndexer') # the stylesheet needs this, even if empty?
 
 
     def removeVerticalInteriorSymbols(self):
@@ -1196,8 +1204,6 @@ class Report(object):
             return None
         factList = sorted(factList, key=lambda thing: thing[0]) # sorts by year
 
-        from matplotlib.pyplot import figure, cm
-        from matplotlib import __version__ as matplotlib__version__
 
         # Determine array sizes depending on input data set    
         topOfGradientColor = cm.colors.hex2color('#B5DBEF')
@@ -1467,12 +1473,12 @@ class Row(object):
                 typeQname = str(concept.typeQname)
                 simpleDataType = self.simpleDataType(concept)
                 for lang in ('en-US','en','en-GB'): # WcH 7/14/2017 look for both languages
-                    thedoclabel = concept.label(preferredLabel=arelle.XbrlConst.documentationLabel, fallbackToQname=False,lang=lang,linkrole=arelle.XbrlConst.defaultLinkRole)
+                    thedoclabel = concept.label(preferredLabel=documentationLabel, fallbackToQname=False,lang=lang,linkrole=defaultLinkRole)
                     if thedoclabel is not None:
                         doclabel = thedoclabel
                         break
                 references = []
-                relationshipList = concept.modelXbrl.relationshipSet(arelle.XbrlConst.conceptReference).fromModelObject(concept)
+                relationshipList = concept.modelXbrl.relationshipSet(conceptReference).fromModelObject(concept)
                 def arbitrarykey(x):
                     return x.sourceline
                 relationshipList.sort(key=arbitrarykey)
@@ -1844,7 +1850,6 @@ class Cell(object):
                         self.filing.controller.writeFile(os.path.join(self.filing.fileNameBase, pngname), file.read())
                     file.close()
                     del file  # dereference
-                from matplotlib import pyplot
                 pyplot.close(fig)
                 self.filing.controller.logDebug('Barchart {} inserted into {} Generated Figures={}'.format(
                                          embedding.cube.linkroleUri, report.cube.linkroleUri, report.controller.nextBarChartFileNum))
@@ -1857,117 +1862,3 @@ class Cell(object):
         SubElement(EmbeddedReport, 'IsTransposed').text = str(self.row.report.cube.isTransposed).casefold()
         SubElement(EmbeddedReport, 'Role')
         EmbeddedReport.append(embedding.report.rootETree)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# this is broken.
-#===============================================================================
-#     def handleGrouped(self):
-# 
-#         #[(r.level, r.coordinateList, r.IsAbstractGroupTitle) for r in self.rowList if not r.isHidden]
-#         #[(str(fam.member), fam.memberLabel, fam.pseudoAxisName, fam.pseudoAxisName in self.embedding.groupedAxisQnameSet) for fam in row.factAxisMemberGroup.factAxisMemberRowList]
-#         #row.index
-#         #memberStack
-# 
-#         counter = 0
-#         prevRow = None
-#         memberStack = []
-# 
-#         while counter < len(self.rowList):
-# 
-#             row = self.rowList[counter]
-#             #             nextRow = None
-#             #             if counter + 1 < len(self.rowList):
-#             #                 nextRow = self.rowList[counter + 1]
-# 
-#             if row.isHidden:
-#                 counter += 1
-#                 continue
-# 
-#             if prevRow is None or row.groupedCoordinateList != prevRow.groupedCoordinateList:
-#                 for i, factAxisMember in enumerate(row.factAxisMemberGroup.factAxisMemberRowList):
-#                     if factAxisMember.pseudoAxisName not in self.embedding.groupedAxisQnameSet:
-#                         continue
-# 
-#                     # if we're about to push a new abstract row onto the stack, but first we might need to close some open
-#                     # axes with some dummy rows.
-#                     while len(memberStack) > i > 0:
-#                         counter = self.groupedHelperForMissingTotalRow(memberStack, counter)
-#                     #===========================================================
-#                     # if      (prevRow is not None and len(memberStack) > 0 and
-#                     #          (nextRow is None or row.coordinateList[i] != nextRow.coordinateList[i])):
-#                     #     member, totalLabel = memberStack.pop()
-#                     #     if not (member == totalLabel == None):
-#                     #         emptyTotalAbstractRow = Row(self.filing, self, index=counter, IsAbstractGroupTitle=True, level=len(memberStack))
-#                     #         emptyTotalAbstractRow.headingList = [totalLabel]
-#                     #         self.rowList.insert(counter, emptyTotalAbstractRow)
-#                     #         counter += 1
-#                     #===========================================================
-# 
-#                     if prevRow is None or row.coordinateList[i] != prevRow.coordinateList[i]:
-#                         # we push nothing to the stack because there's still a level there.
-#                         if factAxisMember.member is None:
-#                             memberStack += [(None, None)]
-# 
-#                         # we create an abstract row and push to the stack, later we will close.
-#                         else:
-#                             openingAbstractRow = Row(self.filing, self, index=counter, IsAbstractGroupTitle=True, level=len(memberStack))
-#                             openingAbstractRow.headingList = [factAxisMember.memberLabel]
-#                             self.rowList.insert(counter, openingAbstractRow)
-#                             counter += 1
-# 
-#                             totalLabel = self.filing.memberDict[factAxisMember.member].arelleConcept.label(preferredLabel = Utils.totalRole)
-#                             memberStack += [(factAxisMember.member, totalLabel)]
-# 
-#                     # if we haven't written a sequence of rows with the same groupedCoordinateList, we close anyways.
-#                     elif factAxisMember.member is None and len(memberStack) > 0:
-#                         member, totalLabel = memberStack.pop()
-#                         if not (member == totalLabel == None):
-#                             row.headingList = [totalLabel]
-# 
-#             # if we enter check below, we've already written a sequence of rows with the same groupedCoordinateList, now
-#             # we have to be on the lookout for the total row to close it.
-#             elif    (len(row.factAxisMemberGroup.factAxisMemberRowList) > len(memberStack) > 0 and
-#                      row.factAxisMemberGroup.factAxisMemberRowList[ len(memberStack) ].member is None):
-#                 member, totalLabel = memberStack.pop()
-#                 if not (member == totalLabel == None):
-#                     row.headingList = [totalLabel]
-# 
-#             row.level = len(memberStack)
-#             prevRow = self.rowList[counter]
-#             counter += 1
-# 
-#         # if we go through all the rows, but the stack isn't empty yet, then there are missing total rows, so pop them and make rows.
-#         while len(memberStack) > 0:
-#             counter = self.groupedHelperForMissingTotalRow(memberStack, counter)
-# 
-# 
-#     def groupedHelperForMissingTotalRow(self, memberStack, counter):
-#         member, totalLabel = memberStack.pop()
-#         if member == totalLabel == None:
-#             return counter
-#         else:
-#             emptyTotalAbstractRow = Row(self.filing, self, index=counter, IsAbstractGroupTitle=True, level=len(memberStack))
-#             emptyTotalAbstractRow.headingList = [totalLabel]
-#             self.rowList.insert(counter, emptyTotalAbstractRow)
-#             return counter + 1
-#===============================================================================

@@ -9,18 +9,9 @@ Saves extracted instance document.
 
 (c) Copyright 2013 Mark V Systems Limited, All rights reserved.
 '''
-from arelle import ModelXbrl, ValidateXbrlDimensions, XbrlConst
 from arelle.PluginManager import pluginClassMethods
-from arelle.PrototypeDtsObject import LocPrototype, ArcPrototype
-from arelle.ModelDocument import ModelDocument, ModelDocumentReference, Type, load
-from arelle.ModelInstanceObject import ModelInlineFootnote
-from arelle.XmlUtil import addChild, copyIxFootnoteHtml, elementChildSequence
-from arelle.UrlUtil import isHttpUrl
-from arelle.ValidateFilingText import CDATApattern
+from arelle.ModelDocument import Type
 import os, zipfile, io
-from optparse import SUPPRESS_HELP
-from lxml.etree import XML, XMLSyntaxError
-from collections import defaultdict
 
 MANIFEST_NAMESPACE = "http://disclosure.edinet-fsa.go.jp/2013/manifest"
 DEFAULT_INSTANCE_EXT = ".xml"  # the extension on the instance to be saved
@@ -37,7 +28,7 @@ def saveTargetDocumentIfNeeded(cntlr, options, modelXbrl, filing, suffix="_htm."
     if ((options.saveTargetFiling or options.saveTargetInstance) and
         (cntlr.reportZip or cntlr.reportsFolder is not None)):
         if options.saveTargetFiling:
-            (path, ignore) = os.path.splitext(modelDocument.filepath)
+            (path, _) = os.path.splitext(modelDocument.filepath)
             if cntlr.reportZip:
                 saveTargetPath = os.path.basename(path) + suffix + 'zip'
             elif cntlr.reportsFolder is not None:
@@ -76,10 +67,10 @@ def saveTargetDocumentIfNeeded(cntlr, options, modelXbrl, filing, suffix="_htm."
         addRefDocs(modelDocument) 
     
     else:
-         if cntlr.reportZip:
-             filingZip = cntlr.reportZip
+        if cntlr.reportZip:
+            filingZip = cntlr.reportZip
 
-    saveTargetDocument(filing, modelXbrl, targetFilename, targetSchemaRefs,
+    saveTargetDocument(cntlr,filing, modelXbrl, targetFilename, targetSchemaRefs,
                        outputZip=filingZip, filingFiles=filingFiles, suffix=suffix, iext=iext)
         
     if options.saveTargetFiling:
@@ -97,10 +88,10 @@ def saveTargetDocumentIfNeeded(cntlr, options, modelXbrl, filing, suffix="_htm."
         cntlr.reportZip.writestr(saveTargetPath, zipStream.read())
         zipStream.close()
      
-def saveTargetDocument(filing, modelXbrl, targetDocumentFilename, targetDocumentSchemaRefs,
+def saveTargetDocument(cntlr,filing, modelXbrl, targetDocumentFilename, targetDocumentSchemaRefs,
                        outputZip=None, filingFiles=None,
                        suffix=DEFAULT_DISTINGUISHING_SUFFIX, iext=DEFAULT_INSTANCE_EXT):
-    sourceDir = os.path.dirname(modelXbrl.modelDocument.filepath)
+    # sourceDir = os.path.dirname(modelXbrl.modelDocument.filepath)
     targetUrlParts = targetDocumentFilename.rpartition(".")
     targetUrl = targetUrlParts[0] + suffix + targetUrlParts[2]
     modelXbrl.modelManager.showStatus(_("Extracting instance ") + os.path.basename(targetUrl))

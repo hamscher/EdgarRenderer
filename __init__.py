@@ -137,21 +137,23 @@ Required if running under Java (using runtime.exec) on Windows, suggested always
     (to prevent matlib crash under runtime.exe with Java)
         
 """
+from certifi.__main__ import args
 VERSION = '3.20.3'
 
+from builtins import __dict__
 from collections import defaultdict
-from arelle import PythonUtil  # define 2.x or 3.x string types
-PythonUtil.noop(0)  # Get rid of warning on PythonUtil import
+from os import getcwd, remove, removedirs
+from os.path import join, isfile, exists, dirname, basename, isdir
+from optparse import OptionParser, SUPPRESS_HELP
+import datetime, zipfile, logging, shutil, gettext, time, shlex, sys, traceback, linecache, os, re, io, tempfile
+from . import Brel as brel
+
 from arelle import (Cntlr, FileSource, ModelDocument, XmlUtil, Version, ModelValue, Locale, PluginManager, WebCache, ModelFormulaObject,
                     ViewFileFactList, ViewFileFactTable, ViewFileConcepts, ViewFileFormulae,
                     ViewFileRelationshipSet, ViewFileTests, ViewFileRssFeed, ViewFileRoleTypes)
 from arelle.PluginManager import pluginClassMethods
+from arelle.ValidateFilingText import referencedFiles
 from . import RefManager, IoManager, Inline, Utils, Filing, Summary
-import datetime, zipfile, logging, shutil, gettext, time, shlex, sys, traceback, linecache, os, re, io, tempfile
-from lxml import etree
-from os import getcwd, remove, removedirs
-from os.path import join, isfile, exists, dirname, basename, isdir
-from optparse import OptionParser, SUPPRESS_HELP
 
 MODULENAME = os.path.basename(os.path.dirname(__file__))
 
@@ -319,9 +321,9 @@ class EdgarRenderer(Cntlr.Cntlr):
             self.logDebug(_("No config file"))
         else:
             self.logDebug(_("Extracting info from config file {}".format(os.path.basename(configLocation))))
-            tree = etree.parse(configLocation)
+            tree = brel.parse(configLocation)
             for child in tree.iter():
-                if child.tag is not etree.Comment and child.text is not None:
+                if child.tag is not brel.Comment and child.text is not None:
                     if child.tag in self.defaultValueDict:
                         value = child.text.strip()
                         if value == '': value = None
@@ -775,10 +777,11 @@ class EdgarRenderer(Cntlr.Cntlr):
         self.logMessageText = {}
         if self.logMessageTextFile:
             try:
-                for msgElt in etree.parse(self.logMessageTextFile).iter("message"):
+                for msgElt in brel.parse(self.logMessageTextFile).iter("message"):
                     self.logMessageText[msgElt.get("code")] = re.sub(
                         r"\$\((\w+)\)", r"%(\1)s", msgElt.text.strip())
             except Exception as ex:
+                ex = ex
                 self.logDebug(_("Exception loading logMessageText file, traceback: {}").format(traceback.format_exception(*sys.exc_info())))
                 self.logMessageText.clear() # don't leave possibly erroneous messages text entries
 
@@ -929,8 +932,8 @@ class EdgarRenderer(Cntlr.Cntlr):
                     self.renderedFiles.add("FilingSummary.xml")
                     if self.renderingLogsXslt and self.summaryHasLogEntries and not self.processXsltInBrowser:
                         _startedAt = time.time()
-                        logs_transform = etree.XSLT(etree.parse(self.renderingLogsXslt))
-                        result = logs_transform(rootETree, asPage=etree.XSLT.strparam('true'))
+                        logs_transform = brel.XSLT(brel.parse(self.renderingLogsXslt))
+                        result = logs_transform(rootETree, asPage=brel.XSLT.strparam('true'))
                         self.logDebug("RenderingLogs XSLT transform {:.3f} secs.".format(time.time() - _startedAt))
                         IoManager.writeHtmlDoc(filing, result, self.reportZip, self.reportsFolder, 'RenderingLogs.htm')
                         self.renderedFiles.add("RenderingLogs.htm")
@@ -941,12 +944,12 @@ class EdgarRenderer(Cntlr.Cntlr):
                                 ((self.summaryXsltDissem, dissemReportsFolder, self.includeLogsInSummaryDissem),)
                                 if self.summaryXsltDissem else ())):
                             if not _xsltFile: continue
-                            summary_transform = etree.XSLT(etree.parse(_xsltFile))
-                            result = summary_transform(rootETree, asPage=etree.XSLT.strparam('true'),
+                            summary_transform = brel.XSLT(brel.parse(_xsltFile))
+                            result = summary_transform(rootETree, asPage=brel.XSLT.strparam('true'),
                                                        accessionNumber="'{}'".format(getattr(filing, "accessionNumber", "")),
                                                        resourcesFolder="'{}'".format(self.resourcesFolder.replace("\\","/")),
-                                                       processXsltInBrowser=etree.XSLT.strparam(str(self.processXsltInBrowser).lower()),
-                                                       includeLogs=etree.XSLT.strparam(str(_includeLogs).lower()))
+                                                       processXsltInBrowser=brel.XSLT.strparam(str(self.processXsltInBrowser).lower()),
+                                                       includeLogs=brel.XSLT.strparam(str(_includeLogs).lower()))
                             IoManager.writeHtmlDoc(filing, result, self.reportZip, _reportsFolder, "FilingSummary.htm")
                         self.logDebug("FilingSummary XSLT transform {:.3f} secs.".format(time.time() - _startedAt))
                         self.renderedFiles.add("FilingSummary.htm")
@@ -996,8 +999,11 @@ class EdgarRenderer(Cntlr.Cntlr):
                         zipStream.close()
                         self.logDebug("Write {} complete".format(_fileName))
 
+                # occurs upon <?arelle-unit-test location="EFM/Filing.py#validateFiling_start" action="AssertionError"?>
                 if "EdgarRenderer/__init__.py#filingEnd" in filing.arelleUnitTests:
-                    raise arelle.PythonUtil.pyNamedObject(filing.arelleUnitTests["EdgarRenderer/__init__.py#filingEnd"], "EdgarRenderer/__init__.py#filingEnd")
+                    action = filing.arelleUnitTests["EdgarRenderer/__init__.py#filingEnd"]
+                    objectConstructor = __dict__[action]
+                    raise objectConstructor("EdgarRenderer/__init__.py#filingEnd")
 
                 if self.isDaemon: # save file in Archives
                     try:
@@ -1016,6 +1022,7 @@ class EdgarRenderer(Cntlr.Cntlr):
                         self.logError(_("Failure: Post-processing I/O or OS error: {}").format(err))
                         self.success = False
             except Exception as ex:
+                ex = ex
                 action = "complete validation" if options.noReportOutput else "produce output"
                 self.logWarn(_("The rendering engine was unable to {} due to an internal error.  This is not considered an error in the filing.").format(action))
                 self.logDebug(_("Exception in filing end processing, traceback: {}").format(traceback.format_exception(*sys.exc_info())))
@@ -1023,87 +1030,6 @@ class EdgarRenderer(Cntlr.Cntlr):
 
         if not self.success and self.isDaemon: # not successful
             self.postprocessFailure(filing.options)
-
-    '''
-    def postprocessInstance(self, options, modelXbrl):
-        Inline.saveTargetDocumentIfNeeded(self,options,modelXbrl)
-        del modelXbrl.duplicateFactSet
-        xlWriter = self.xlWriter
-        if xlWriter:
-            xlWriter.save()
-            xlWriter.close()
-            del self.xlWriter 
-            self.logDebug("Excel rendering complete")
-        modelXbrl.profileStat(_("total"), time.time() - self.firstStartedAt)
-        if options.collectProfileStats and modelXbrl:
-            modelXbrl.logProfileStats() 
-        def copyResourceToReportFolder(filename):
-            source = join(self.resourcesFolder, filename)
-            if self.reportZip:
-                self.reportZip.write(source, filename)
-            elif self.reportsFolder is not None:
-                target = join(self.reportsFolder, filename)
-                if not exists(target):
-                    os.makedirs(self.reportsFolder, exist_ok=True)
-                    shutil.copyfile(source, target) 
-        if 'html' in (self.reportFormat or "").casefold() or self.summaryXslt is not None:
-            copyResourceToReportFolder("Show.js")
-            copyResourceToReportFolder("report.css")
-        if self.summaryXslt and len(self.summaryXslt) > 0 :
-            copyResourceToReportFolder("RenderingLogs.xslt")
-        # TODO: At this point would be nice to call out any files not loaded in any instance DTS
-        inputsToCopyToOutputList = self.supplementList
-        if options.copyInlineFilesToOutput: inputsToCopyToOutputList += self.inlineList
-        for filename in inputsToCopyToOutputList:
-            source = join(self.processingFolder, filename)
-            if self.reportZip:
-                self.reportZip.write(source, filename)
-            elif self.reportsFolder is not None:
-                target = join(self.reportsFolder, filename)
-                if exists(target): remove(target)
-                shutil.copyfile(source, target)
-        self.modelManager.close(modelXbrl)
-        self.logDebug("Instance post-processing complete")
-        
-        summary = Summary.Summary(self)    
-        rootETree = summary.buildSummaryETree()
-        IoManager.writeXmlDoc(rootETree, self.reportZip, self.reportsFolder, 'FilingSummary.xml')
-        if self.summaryXslt and len(self.summaryXslt) > 0 :
-            summary_transform = etree.XSLT(etree.parse(self.summaryXslt))
-            result = summary_transform(rootETree, asPage=etree.XSLT.strparam('true'))
-            IoManager.writeHtmlDoc(result, self.reportZip, self.reportsFolder, 'FilingSummary.htm')
-        if self.auxMetadata: 
-            summary.writeMetaFiles()
-     
-        if not self.reportZip and self.zipOutputFile:
-            # The output must be zipped.
-            zipdir = self.reportsFolder      
-            self.zipOutputFile = join(zipdir, self.zipOutputFile)    
-            if self.entrypoint == self.zipOutputFile:  # Check absolute path destinations
-                #message = ErrorMgr.getError('INPUT_OUTPUT_SAME').format(self.zipOutputFile)
-                self.logWarn("Input and output files are the same: {}".format(self.zipOutputFile))
-            self.logDebug(_("Creating output {} containing rendering results and other input files."
-                           ).format(self.zipOutputFile))
-            try:
-                zf = zipfile.ZipFile(self.zipOutputFile, 'w', allowZip64=False)                                             
-                for f in os.listdir(self.reportsFolder):
-                    if not Utils.isZipFilename(f) and not isdir(f) and not IoManager.isFileHidden(f):
-                        IoManager.moveToZip(zf, join(zipdir, f), basename(f))
-                # shutil.rmtree(self.reportsFolder)
-            finally:
-                zf.close()
-            self.logDebug(_("Rendering results zip file {} populated").format(self.zipOutputFile))
-            if self.isDaemon:
-                try:
-                    result = IoManager.move_clobbering_file(self.zipOutputFile, self.deliveryFolder) 
-                    IoManager.move_clobbering_file(options.entrypoint, self.doneFile)
-                    self.logDebug(_("Successfully post-processed to {}.").format(result))
-                except OSError as err:
-                    #self.logError(_(ErrorMgr.getError('POST_PROCESSING_ERROR').format(err)))
-                    self.logError(_("Failure: Post-processing I/O or OS error: {}").format(err))
-        if self.deleteProcessedFilings:
-            for folder in self.createdFolders: shutil.rmtree(folder,ignore_errors=True) 
-    '''
 
     def postprocessFailure(self, options):
         if self.isSingles:
@@ -1129,7 +1055,7 @@ class EdgarRenderer(Cntlr.Cntlr):
                         message = "[" + errmsg.msgCode + "] " + errmsg.msg
                     '''
                     logHandler = self.cntlr.logHandler
-                    logMessageText = self.logMessageText
+                    # logMessageText = self.logMessageText
                     for logRec in getattr(logHandler, "logRecordBuffer", ()): # non buffered handlers don't keep log records (e.g., log to print handler)
                         if logRec.levelno > logging.INFO:
                             print(self.formatLogMessage(logRec), file=f)
@@ -1246,7 +1172,6 @@ def edgarRendererGuiStartLogging(modelXbrl, mappedUri, normalizedUri, filepath, 
 def edgarRendererGuiRun(cntlr, modelXbrl, attach, *args, **kwargs):
     """ run EdgarRenderer using GUI interactions for a single instance or testcases """
     if cntlr.hasGui and modelXbrl.modelDocument:
-        from arelle.ValidateFilingText import referencedFiles
         parameters = modelXbrl.modelManager.formulaOptions.parameterValues
         _combinedReports = not cntlr.showTablesMenu.get() # use mustard menu
         if "summaryXslt" in parameters and "reportXslt" in parameters:
@@ -1267,7 +1192,7 @@ def edgarRendererGuiRun(cntlr, modelXbrl, attach, *args, **kwargs):
         isNonEFMorGFMinline = (not getattr(cntlr.modelManager.disclosureSystem, "EFMplugin", False) and
                                modelXbrl.modelDocument.type in (ModelDocument.Type.INLINEXBRL, ModelDocument.Type.INLINEXBRLDOCUMENTSET))
         # may use GUI mode to process a single instance or test suite
-        options = PythonUtil.attrdict(# simulate options that CntlrCmdLine provides
+        options = Utils.attrdict(# simulate options that CntlrCmdLine provides
             configFile = os.path.join(os.path.dirname(__file__), 'conf', 'config_for_instance.xml'),
             renderingService = 'Instance',
             reportFormat = "None" if isNonEFMorGFMinline else "Html", # for Rall temporarily override report format to force only xml file output
@@ -1339,7 +1264,7 @@ def edgarRendererGuiRun(cntlr, modelXbrl, attach, *args, **kwargs):
                     else [])+ [ixDoc
                                for ixDoc in sorted(modelXbrl.modelDocument.referencesDocument.keys(), key=lambda d: d.objectIndex)
                                if ixDoc.type == ModelDocument.Type.INLINEXBRL]
-        report = PythonUtil.attrdict( # simulate report
+        report = Utils.attrdict( # simulate report
             isInline = modelXbrl.modelDocument.type in (ModelDocument.Type.INLINEXBRL, ModelDocument.Type.INLINEXBRLDOCUMENTSET),
             reportedFiles = reportedFiles,
             renderedFiles = set(),
@@ -1364,7 +1289,7 @@ def edgarRendererGuiRun(cntlr, modelXbrl, attach, *args, **kwargs):
                 fh.write(data)
         def guiReadFile(filepath, binary):
             return modelXbrl.fileSource.file(filepath, binary)
-        filing = PythonUtil.attrdict( # simulate filing
+        filing = Utils.attrdict( # simulate filing
             filesource = modelXbrl.fileSource,
             reportZip = None,
             entrypointfiles = [{"file":modelXbrl.modelDocument.uri}],
@@ -1408,7 +1333,7 @@ def edgarRendererGuiRun(cntlr, modelXbrl, attach, *args, **kwargs):
   </head>
   <body>
 ''']
-                filingSummaryTree = etree.parse(os.path.join(edgarRenderer.reportsFolder, "FilingSummary.xml"))
+                filingSummaryTree = brel.parse(os.path.join(edgarRenderer.reportsFolder, "FilingSummary.xml"))
                 for htmlFileName in filingSummaryTree.iter(tag="HtmlFileName"):
                     rFile = htmlFileName.text.strip()
                     rFilePath = os.path.join(edgarRenderer.reportsFolder, rFile)
@@ -1431,7 +1356,7 @@ def edgarRendererGuiRun(cntlr, modelXbrl, attach, *args, **kwargs):
                 import webbrowser
                 openingUrl = None
                 if isNonEFMorGFMinline: # for non-EFM/GFM open ix viewer directly
-                    filingSummaryTree = etree.parse(os.path.join(edgarRenderer.reportsFolder, "FilingSummary.xml"))
+                    filingSummaryTree = brel.parse(os.path.join(edgarRenderer.reportsFolder, "FilingSummary.xml"))
                     for reportElt in filingSummaryTree.iter(tag="Report"):
                         if reportElt.get("instance"):
                             openingUrl = "ix.html?doc={}&xbrl=true".format(reportElt.get("instance"))
