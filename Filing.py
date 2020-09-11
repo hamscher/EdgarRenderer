@@ -13,11 +13,6 @@ from collections import defaultdict
 import os, re, math, datetime, dateutil.relativedelta, time
 from . import Brel as brel
 
-import arelle.ModelValue
-from arelle.ModelDtsObject import ModelConcept
-from arelle.ModelObject import ModelObject
-from arelle.XmlUtil import collapseWhitespace
-from arelle.XmlValidate import VALID, VALID_NO_CONTENT
 
 from . import Cube, Embedding, Report, PresentationGroup, Summary, Utils, Xlout
 
@@ -203,12 +198,12 @@ class Filing(object):
                                      ('us-gaap',self.usgaapNamespace,'ErrorCorrectionsAndPriorPeriodAdjustmentsRestatementByRestatementPeriodAndAmountAxis'),
                                      ('ifrs-full',self.ifrsNamespace,'RetrospectiveApplicationAndRetrospectiveRestatementAxis')
                                      ]
-        self.builtinAxisOrders = [(arelle.ModelValue.QName('us-gaap',self.usgaapNamespace,'StatementScenarioAxis'),
+        self.builtinAxisOrders = [(brel.QName('us-gaap',self.usgaapNamespace,'StatementScenarioAxis'),
                                    ['ScenarioPreviouslyReportedMember',
                                     'RestatementAdjustmentMember',
                                     'ChangeInAccountingPrincipleMember'],
                                    ['ScenarioUnspecifiedDomain'])
-                                  ,(arelle.ModelValue.QName('ifrs-full',self.ifrsNamespace,'RetrospectiveApplicationAndRetrospectiveRestatementAxis')
+                                  ,(brel.QName('ifrs-full',self.ifrsNamespace,'RetrospectiveApplicationAndRetrospectiveRestatementAxis')
                                    ,['PreviouslyStatedMember'
                                      ,'IncreaseDecreaseDueToChangesInAccountingPolicyAndCorrectionsOfPriorPeriodErrorsMember'
                                      ,'FinancialEffectOfChangesInAccountingPolicyMember'
@@ -218,10 +213,10 @@ class Filing(object):
                                      ]
                                    ,['RestatedMember'])
                                   ]
-        self.builtinLineItems = [arelle.ModelValue.QName('us-gaap',self.usgaapNamespace,'StatementLineItems')
-                                 ,arelle.ModelValue.QName('ifrs-full',self.ifrsNamespace,'StatementOfChangesInEquityLineItems')
+        self.builtinLineItems = [brel.QName('us-gaap',self.usgaapNamespace,'StatementLineItems')
+                                 ,brel.QName('ifrs-full',self.ifrsNamespace,'StatementOfChangesInEquityLineItems')
                                  ]
-        self.segmentHeadingStopList = [arelle.ModelValue.QName(x,y,z) for x,y,z in self.builtinEquityRowAxes]
+        self.segmentHeadingStopList = [brel.QName(x,y,z) for x,y,z in self.builtinEquityRowAxes]
         
         self.factToEmbeddingDict = {}
         self.factFootnoteDict = defaultdict(list)
@@ -309,8 +304,8 @@ class Filing(object):
             parentChildRelationshipSet.loadModelRelationshipsTo()
             parentChildRelationshipSet.loadModelRelationshipsFrom()
             # Find the axes in presentation groups
-            toDimensions = {c for c in parentChildRelationshipSet.modelRelationshipsTo.keys() if isinstance(c,ModelConcept) and c.isDimensionItem}
-            fromDimensions = {c for c in parentChildRelationshipSet.modelRelationshipsFrom.keys() if isinstance(c,ModelConcept) and c.isDimensionItem}
+            toDimensions = {c for c in parentChildRelationshipSet.modelRelationshipsTo.keys() if isinstance(c,brel.ModelConcept) and c.isDimensionItem}
+            fromDimensions = {c for c in parentChildRelationshipSet.modelRelationshipsFrom.keys() if isinstance(c,brel.ModelConcept) and c.isDimensionItem}
             # definition linkbase
             dimensionDefaultRelationshipSet = self.modelXbrl.relationshipSet(brel.dimensionDefault)
             dimensionDefaultRelationshipSet.loadModelRelationshipsFrom()
@@ -441,10 +436,10 @@ class Filing(object):
                 dupFirstFact = dupFactFootnoteOrigin.get(relationship.fromModelObject)
                 if dupFirstFact is not None:
                     _contentsDuplicated = False
-                    _contents = collapseWhitespace(relationship.toModelObject.viewText())
+                    _contents = brel.collapseWhitespace(relationship.toModelObject.viewText())
                     # check that footnote isn't a complete duplicate of footnote already in footnoteDict
                     for _otherResource, _otherContents in self.factFootnoteDict[dupFirstFact]:
-                        if _contents == collapseWhitespace(_otherContents): # compare as normalized string
+                        if _contents == brel.collapseWhitespace(_otherContents): # compare as normalized string
                             _contentsDuplicated = True
                             break
                     if not _contentsDuplicated:
@@ -455,9 +450,9 @@ class Filing(object):
         for context in self.modelXbrl.contexts.values():
             if context.scenario is not None and not self.validatedForEFM:
                 _childTagNames = [child.prefixedName for child in context.scenario.iterchildren()
-                                  if isinstance(child,ModelObject)]
+                                  if isinstance(child,brel.ModelObject)]
                 childTags = ", ".join(_childTagNames)
-                self.modelXbrl.error("EFM.6.05.05", # use standard arelle message
+                self.modelXbrl.error("EFM.6.05.05", # use standard EFM message
                                 _("There must be no segments with non-explicitDimension content, but %(count)s was(were) "
                                   "found: %(content)s."),
                                 edgarCode="cp-0505-Segment-Child-Not-Explicit-Member",
@@ -471,7 +466,7 @@ class Filing(object):
                 self.usedOrBrokenFactDefDict[fact].add(None) #now bad fact won't come back to bite us when processing isUncategorizedFacts
                 continue # fact was rejected in first loop of this function because of problem with the Element
 
-            if fact.unit is None and fact.unitID is not None: # to do a unitref that isn't a unit should be found by arelle, but isn't.
+            if fact.unit is None and fact.unitID is not None: # to do a unitref that isn't a unit should be detected by validation, but isn't.
                 if not self.validatedForEFM: # use Arelle validation message
                     self.modelXbrl.error("xbrl.4.6.2:numericUnit",
                          _("Fact %(fact)s context %(contextID)s is numeric and must have a unit"),
@@ -505,7 +500,7 @@ class Filing(object):
                     try:
                         prefix, _, localName = fact.value.partition(':')
                         namespaceURI = self.modelXbrl.prefixedNamespaces[prefix]
-                        qname = arelle.ModelValue.QName(prefix, namespaceURI, localName)
+                        qname = brel.QName(prefix, namespaceURI, localName)
                         if qname in self.modelXbrl.qnameConcepts:
                             self.factToQlabelDict[fact] = qname
                     except KeyError:
@@ -532,28 +527,28 @@ class Filing(object):
                 axisMemberLookupDict['unit'] = fact.unit.id
 
             # add each axis to axisMemberLookupDict
-            for arelleDimension in fact.context.qnameDims.values():
-                dimensionConcept = arelleDimension.dimension
-                memberConcept = arelleDimension.member
+            for dimensionPair in fact.context.qnameDims.values():
+                dimensionConcept = dimensionPair.dimension
+                memberConcept = dimensionPair.member
                 if dimensionConcept is None: 
                     if not self.validatedForEFM: # use Arelle validation message
-                        self.modelXbrl.error("xbrldie:TypedMemberNotTypedDimensionError" if arelleDimension.isTyped else "xbrldie:ExplicitMemberNotExplicitDimensionError",
+                        self.modelXbrl.error("xbrldie:TypedMemberNotTypedDimensionError" if dimensionPair.isTyped else "xbrldie:ExplicitMemberNotExplicitDimensionError",
                             _("Context %(contextID)s %(dimension)s %(value)s is not an appropriate dimension item"),
-                            modelObject=(arelleDimension,fact), contextID=fact.context.id, 
-                            dimension=arelleDimension.prefixedName, value=arelleDimension.dimensionQname,
+                            modelObject=(dimensionPair,fact), contextID=fact.context.id, 
+                            dimension=dimensionPair.prefixedName, value=dimensionPair.dimensionQname,
                             messageCodes=("xbrldie:TypedMemberNotTypedDimensionError", "xbrldie:ExplicitMemberNotExplicitDimensionError"))
 
-                elif arelleDimension.isExplicit and memberConcept is None:
+                elif dimensionPair.isExplicit and memberConcept is None:
                     if not self.validatedForEFM: # use Arelle validation message
                         self.modelXbrl.error("xbrldie:ExplicitMemberUndefinedQNameError",
                             _("Context %(contextID)s explicit dimension %(dimension)s member %(value)s is not a global member item"),
-                            modelObject=(arelleDimension,fact), contextID=fact.context.id, 
-                            dimension=arelleDimension.dimensionQname, value=arelleDimension.memberQname)
-                elif arelleDimension.isTyped and arelleDimension.typedMember.xValid < VALID:
+                            modelObject=(dimensionPair,fact), contextID=fact.context.id, 
+                            dimension=dimensionPair.dimensionQname, value=dimensionPair.memberQname)
+                elif dimensionPair.isTyped and dimensionPair.typedMember.xValid < brel.VALID:
                     self.modelXbrl.debug("debug",
                         _("Context %(contextID)s typed dimension %(dimension)s member %(value)s is not an xml schema validated value"),
-                        modelObject=(arelleDimension,fact), contextID=fact.context.id, 
-                        dimension=arelleDimension.dimensionQname, value=arelleDimension.typedMember.text)
+                        modelObject=(dimensionPair,fact), contextID=fact.context.id, 
+                        dimension=dimensionPair.dimensionQname, value=dimensionPair.typedMember.text)
                 else:
                     try:
                         axis = self.axisDict[dimensionConcept.qname]
@@ -563,7 +558,7 @@ class Filing(object):
                             axis.defaultConcept = relationship.toModelObject
                             break
                         self.axisDict[dimensionConcept.qname] = axis
-                    if arelleDimension.isExplicit: # if true, Member exists, else None. there's also isTyped, for typed dims.
+                    if dimensionPair.isExplicit: # if true, Member exists, else None. there's also isTyped, for typed dims.
                         try:
                             member = self.memberDict[memberConcept.qname]
                         except KeyError:
@@ -571,20 +566,20 @@ class Filing(object):
                             self.memberDict[memberConcept.qname] = member
                         member.linkAxis(axis)
                         axis.linkMember(member)
-                        axisMemberLookupDict[axis.arelleConcept.qname] = member.arelleConcept.qname
-                    elif arelleDimension.isTyped:
-                        member = Member(typedMember=arelleDimension.typedMember)
+                        axisMemberLookupDict[axis.concept.qname] = member.concept.qname
+                    elif dimensionPair.isTyped:
+                        member = Member(typedMember=dimensionPair.typedMember)
                         try: # replace with equivalent member, if there is one
                             member = self.memberDict[member] # use previous member object
                         except KeyError:
                             self.memberDict[member] = member
                         member.linkAxis(axis)
                         axis.linkMember(member)
-                        axisMemberLookupDict[axis.arelleConcept.qname] = member
+                        axisMemberLookupDict[axis.concept.qname] = member
 
                     # while we're at it, do some other stuff
                     for cube in element.inCubes.values():
-                        cube.hasAxes[axis.arelleConcept.qname] = axis
+                        cube.hasAxes[axis.concept.qname] = axis
                         cube.hasMembers.add(member)
                         axis.linkCube(cube)
 
@@ -657,7 +652,7 @@ class Filing(object):
             if token1Lower in {'period', 'unit', 'primary'}:
                 listToAddToOutput += [token1Lower]
             elif '_' in token1:
-                qn = arelle.ModelValue.qname(fact, token1.replace('_',':',1)) # only replace first _, because qnames can have _
+                qn = brel.qname(fact, token1.replace('_',':',1)) # only replace first _, because qnames can have _
                 axisConcept = self.modelXbrl.qnameConcepts.get(qn)
                 if axisConcept is not None and axisConcept.isDimensionItem:
                     listToAddToOutput += [qn]
@@ -671,7 +666,6 @@ class Filing(object):
                     tokenCounter += 1
                 tokenCounter += 1
                 errorStr = Utils.printErrorStringToDiscribeEmbeddedTextBlockFact(fact)
-                #message = ErrorMgr.getError('EMBEDDED_COMMAND_SEPARATOR_USED_WARNING').format(token1, tokenCounter, errorStr)
                 self.modelXbrl.info("info",
                                     _("The token at position %(position)s in the list of tokens in %(list)s, is separator. "
                                         "Currently, this keyword is not supported and was ignored."),
@@ -683,7 +677,6 @@ class Filing(object):
 
             if _malformedAxis:
                 errorStr = Utils.printErrorStringToDiscribeEmbeddedTextBlockFact(fact)
-                #message = ErrorMgr.getError('EMBEDDED_COMMAND_INVALID_FIRST_TOKEN_ERROR').format(token1, tokenCounter, errorStr)
                 self.modelXbrl.error("EFM.6.26.04.embeddingCmdMalformedAxis",
                                     _("In ''%(linkroleName)s'', the embedded report created by the fact %(fact)s with the context "
                                       "%(contextID)s, the token %(token)s, at position %(position)s in the list of tokens, is malformed. "
@@ -703,7 +696,6 @@ class Filing(object):
             elif token2Lower == 'grouped':
                 listToAddToOutput += ['compact']
                 errorStr = Utils.printErrorStringToDiscribeEmbeddedTextBlockFact(fact)
-                #message = ErrorMgr.getError('EMBEDDED_COMMAND_GROUPED_USED_WARNING').format(token2, tokenCounter, errorStr)
                 self.modelXbrl.info("info",
                                     _("The token at position %(position)s in the list of tokens in %(list)s, is grouped. "
                                         "Currently, this keyword is not supported and was replaced with compact."),
@@ -711,14 +703,12 @@ class Filing(object):
             elif token2Lower == 'unitcell':
                 listToAddToOutput += ['compact']
                 errorStr = Utils.printErrorStringToDiscribeEmbeddedTextBlockFact(fact)
-                #message = ErrorMgr.getError('EMBEDDED_COMMAND_UNITCELL_USED_WARNING').format(token2, tokenCounter, errorStr)
                 self.modelXbrl.info("info",
                                     _("The token at position %(position)s in the list of tokens in %(list)s, is unitcell. " 
                                         "Currently, this keyword is not supported and was replaced with compact."),
                                     modelObject=fact, position=tokenCounter, list=errorStr)
             else:
                 errorStr = Utils.printErrorStringToDiscribeEmbeddedTextBlockFact(fact)
-                #message = ErrorMgr.getError('EMBEDDED_COMMAND_INVALID_SECOND_TOKEN_ERROR').format(token2, tokenCounter, errorStr)
                 self.modelXbrl.error("EFM.6.26.04.embeddingCmdMalformedStyleToken",
                                      _("In ''%(linkroleName)s'', the embedded report created by the fact %(fact)s, with the context "
                                        "%(contextID)s, the style keyword %(style)s is not one of 'compact' or 'nodisplay'."),
@@ -737,7 +727,7 @@ class Filing(object):
             for tokenMember in tempList: 
                 tokenCounter += 1
                 if '_' in tokenMember:
-                    qn = arelle.ModelValue.qname(fact, tokenMember.replace('_',':',1))
+                    qn = brel.qname(fact, tokenMember.replace('_',':',1))
                     memConcept = self.modelXbrl.qnameConcepts.get(qn)
                     if memConcept is not None and memConcept.type is not None and memConcept.type.isDomainItemType:
                         listToAddToOutput += [qn]
@@ -750,7 +740,6 @@ class Filing(object):
                     
             if invalidTokens:
                 errorStr = Utils.printErrorStringToDiscribeEmbeddedTextBlockFact(fact)
-                #message = ErrorMgr.getError('EMBEDDED_COMMAND_INVALID_MEMBER_NAME_ERROR').format(tokenMember, tokenCounter, errorStr)
                 self.modelXbrl.error("EFM.6.26.04.embeddingCmdMalformedMember",
                                      _("In ''%(linkroleName)s'', the embedded report created by the fact %(fact)s with the context "
                                        "%(contextID)s, the keyword(s) %(tokenlist)s is not '*', a valid member qname or list of "
@@ -771,9 +760,6 @@ class Filing(object):
         cube.embeddingList += [embedding]
         self.factToEmbeddingDict[fact] = embedding
         return True
-
-
-
 
 
     def handleUncategorizedCube(self, xlWriter):
@@ -1140,22 +1126,22 @@ class StartEndContext(object):
             return "[{} {}m {}]".format(self.startTimePretty[:10],self.numMonths,self.endTimePretty[:10])
 
 class Axis(object):
-    def __init__(self, arelleConcept):
+    def __init__(self, concept):
         self.inCubes = {}
         self.hasMembers = set()
-        self.arelleConcept = arelleConcept
+        self.concept = concept
         self.defaultConcept = None
     def linkCube(self, cubeObj):
         self.inCubes[cubeObj.linkroleUri] = cubeObj
     def linkMember(self, memObj):
         self.hasMembers.add(memObj)
     def __repr__(self):
-        return "axis(arelleConcept={}, default={})".format(self.arelleConcept, self.defaultConcept)
+        return "axis(concept={}, default={})".format(self.concept, self.defaultConcept)
 
 class Member(object):
     def __init__(self, explicitMember=None, typedMember=None):
         self.hasMembers = set() # HF: now set of Member objects (was list of expl dim QNames before)
-        self.arelleConcept = explicitMember
+        self.concept = explicitMember
         self.typedValue = self.typedKey = typedHash = self.typedMemberIsNil = None
         if typedMember is not None:
             self.typedValue = []
@@ -1168,9 +1154,9 @@ class Member(object):
                 self.typedKey = self.typedKey[0] # non-complex typed dimension
         self.axis = None
         self.parent = None
-        self.memberHash = hash((hash(self.arelleConcept), hash(typedHash)))
+        self.memberHash = hash((hash(self.concept), hash(typedHash)))
     def initTypedElt(self, typedElt):
-        if VALID <= getattr(typedElt, "xValid") < VALID_NO_CONTENT:
+        if brel.VALID <= getattr(typedElt, "xValid") < brel.VALID_NO_CONTENT:
             if typedElt.get("{http://www.w3.org/2001/XMLSchema-instance}nil") in ("true", "1"):
                 self.typedMemberIsNil = True
             typedValue = getattr(typedElt, "xValue", None)
@@ -1178,14 +1164,14 @@ class Member(object):
                 self.typedKey.append(typedElt.modelXbrl.qnameConcepts[typedElt.qname].type.facets["enumeration"][typedElt.xValue].objectIndex)
             except (AttributeError, IndexError, TypeError):
                 self.typedKey.append(typedValue)
-            if isinstance(typedValue, arelle.ModelValue.IsoDuration):
+            if isinstance(typedValue, brel.IsoDuration):
                 self.typedValue.append(typedValue.viewText()) # duration in words instead of lexical notation
             else:
                 self.typedValue.append(str(typedValue)) # displayable typed value
     @property
     def memberValue(self):
-        if self.arelleConcept is not None:
-            return self.arelleConcept.qname
+        if self.concept is not None:
+            return self.concept.qname
         else:
             return self.typedValue
     @property
@@ -1204,11 +1190,11 @@ class Member(object):
     def __eq__(self,other):
         if not isinstance(other, Member):
             return False
-        if (self.arelleConcept is None) ^ (other.arelleConcept is None):
+        if (self.concept is None) ^ (other.concept is None):
             return False # both must be typed or explicit
-        if self.arelleConcept is not None: 
+        if self.concept is not None: 
             # explicit dimension
-            return self.arelleConcept.prefixedName == other.arelleConcept.prefixedName
+            return self.concept.prefixedName == other.concept.prefixedName
         # typed dimension
         return self.typedMemberIsNil == other.typedMemberIsNil and self.typedValue == other.typedValue
     def __ne__(self,other):
@@ -1216,9 +1202,9 @@ class Member(object):
     def __lt__(self,other):
         if not isinstance(other, Member):
             return False
-        if self.arelleConcept is not None:
-            if other.arelleConcept is not None:
-                return self.arelleConcept.prefixedName < other.arelleConcept.prefixedName
+        if self.concept is not None:
+            if other.concept is not None:
+                return self.concept.prefixedName < other.concept.prefixedName
             return True
         if self.typedMemberIsNil:
             return not other.typedMemberIsNil
@@ -1231,9 +1217,9 @@ class Member(object):
     def __le__(self,other):
         if not isinstance(other, Member):
             return False
-        if self.arelleConcept is not None:
-            if other.arelleConcept is not None:
-                return self.arelleConcept.prefixedName <= other.arelleConcept.prefixedName
+        if self.concept is not None:
+            if other.concept is not None:
+                return self.concept.prefixedName <= other.concept.prefixedName
             return True
         if self.typedMemberIsNil:
             return not other.typedMemberIsNil
@@ -1246,9 +1232,9 @@ class Member(object):
     def __gt__(self,other):
         if not isinstance(other, Member):
             return True
-        if self.arelleConcept is not None:
-            if other.arelleConcept is not None:
-                return self.arelleConcept.prefixedName > other.arelleConcept.prefixedName
+        if self.concept is not None:
+            if other.concept is not None:
+                return self.concept.prefixedName > other.concept.prefixedName
             return False
         if self.typedMemberIsNil:
             return other.typedMemberIsNil
@@ -1261,9 +1247,9 @@ class Member(object):
     def __ge__(self,other):
         if not isinstance(other, Member):
             return True
-        if self.arelleConcept is not None:
-            if other.arelleConcept is not None:
-                return self.arelleConcept.prefixedName >= other.arelleConcept.prefixedName
+        if self.concept is not None:
+            if other.concept is not None:
+                return self.concept.prefixedName >= other.concept.prefixedName
             return False
         if self.typedMemberIsNil:
             return other.typedMemberIsNil
@@ -1274,16 +1260,16 @@ class Member(object):
         except TypeError: # might be int vs string
             return str(self.typedValue) >= str(other.typedValue)
     def __bool__(self):
-        if self.arelleConcept is not None:
-            return bool(self.arelleConcept)
+        if self.concept is not None:
+            return bool(self.concept)
         # typed member
         if self.typedMemberIsNil:
             return True
         return bool(self.typedValue)
 
 class Element(object):
-    def __init__(self, arelleConcept):
+    def __init__(self, concept):
         self.inCubes = {}
-        self.arelleConcept = arelleConcept
+        self.concept = concept
     def linkCube(self, cube):
         self.inCubes[cube.linkroleUri] = cube

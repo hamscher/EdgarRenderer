@@ -12,9 +12,9 @@ from . import Utils
 from . import Brel as brel
 
 class PresentationGroupNode(object):
-    def __init__(self, arelleConcept, arelleRelationship, mayBeUnitConcept, typedValue=None):
-        self.arelleConcept = arelleConcept
-        self.arelleRelationship =  arelleRelationship
+    def __init__(self, concept, relationship, mayBeUnitConcept, typedValue=None):
+        self.concept = concept
+        self.relationship =  relationship
         self.childrenList = [] # lists can be ordered and have duplicates, which is good
 
         # units can be ordered by the presentation group.  the reason that this particular node "MAY" or may not be a unit ordering is because at the time
@@ -25,8 +25,8 @@ class PresentationGroupNode(object):
 
     def __str__(self):
         if self.TypedValue is not None:
-            return "[typedValue: {} with {!s} children]".format(self.typedValue, self.arelleRelationship.preferredLabel, len(self.childrenList))
-        return "[{} {} with {!s} children]".format(self.arelleConcept.qname, self.arelleRelationship.preferredLabel, len(self.childrenList))
+            return "[typedValue: {} with {!s} children]".format(self.typedValue, self.relationship.preferredLabel, len(self.childrenList))
+        return "[{} {} with {!s} children]".format(self.concept.qname, self.relationship.preferredLabel, len(self.childrenList))
 
 
 class PresentationGroup(object):
@@ -47,14 +47,14 @@ class PresentationGroup(object):
             return
         # it helps to have a canonical root node order, even if it is arbitrary.
         # the "or ''" at the end of the below statement is in case the concept doesn't have a label and returns None, can't sort like that.
-        self.rootNodeList = sorted(self.rootNodeList, key = lambda thing : thing.arelleConcept.label() or '')
+        self.rootNodeList = sorted(self.rootNodeList, key = lambda thing : thing.concept.label() or '')
 
 
     # this function builds a graph of all the uncategorized facts and all of their respective axes and members.
     def generateUncategorizedFactsPresentationGroup(self):
         # add all the axes and all their members below them, order isn't important
         for axis in self.cube.hasAxes.values():
-            axisConcept = axis.arelleConcept
+            axisConcept = axis.concept
             rn = PresentationGroupNode(axisConcept, None, False)
             self.rootNodeList += [rn]
             self.buildLabel(axisConcept)
@@ -68,8 +68,8 @@ class PresentationGroup(object):
 
             # sort the axes members by their Member object (built-in) sort order
             for i, member in enumerate(sorted(axis.hasMembers)):
-                if member.arelleConcept is not None: # explicit
-                    concept = member.arelleConcept
+                if member.concept is not None: # explicit
+                    concept = member.concept
                     rn.childrenList += [PresentationGroupNode(concept, None, False)]
                     self.buildLabel(concept)
                     giveMemGetPositionDict[member.memberValue] = i + 1 # add one to be bigger than the zero for the default
@@ -81,7 +81,7 @@ class PresentationGroup(object):
         # add all the elements too
         giveMemGetPositionDict = defaultdict(list)
         for i, (qname, element) in enumerate(self.filing.elementDict.items()):
-            self.rootNodeList += [PresentationGroupNode(element.arelleConcept, None, False)]
+            self.rootNodeList += [PresentationGroupNode(element.concept, None, False)]
             giveMemGetPositionDict[qname].append((i, None))
 
         self.cube.axisAndMemberOrderDict['primary'] = (giveMemGetPositionDict, None)
@@ -120,7 +120,7 @@ class PresentationGroup(object):
                 # if we get here, we have already vistied this relationship, in which case we'll maybe add
                 # a child to an existing node and then return.
                 if passUpNode is not None:
-                    self.maybeAddChild(nodeFromDict, passUpNode, passUpNode.arelleRelationship)
+                    self.maybeAddChild(nodeFromDict, passUpNode, passUpNode.relationship)
                 return
             except KeyError:
                 # we haven't already visited this relationship, so let's make a new node and maybe add a child.
@@ -128,7 +128,7 @@ class PresentationGroup(object):
                     mayBeUnitConcept = childConcept.name in self.filing.modelXbrl.units
                     childNode = PresentationGroupNode(childConcept, relationship, mayBeUnitConcept)
                     if passUpNode is not None:
-                        self.maybeAddChild(childNode, passUpNode, passUpNode.arelleRelationship)
+                        self.maybeAddChild(childNode, passUpNode, passUpNode.relationship)
                     passUpNode = childNode
         else:
             childNode = None
@@ -139,7 +139,7 @@ class PresentationGroup(object):
             # therefore, if we want to see if we've already visited this root concept, we can just look
             # through root nodes that we've already visited.
             for node in self.rootNodeList:
-                if node.arelleConcept == concept:
+                if node.concept == concept:
                     rootNode = node # we have already made a root node for this concept
                     break
             else: # if the above for loop doesn't break, we fall into the else
@@ -200,13 +200,13 @@ class PresentationGroup(object):
         if self.cube.noFactsOrAllFactsSuppressed:
             return
         preferredLabel = None
-        relationship = node.arelleRelationship
+        relationship = node.relationship
         if relationship is not None: # root nodes have no relationship
             if relationship in visited:
                 return
             visited.add(relationship)
             preferredLabel = relationship.preferredLabel
-        concept = node.arelleConcept
+        concept = node.concept
 
         # making giveMemGetPositionDict's
         nodeIsAnAxis = concept is not None and concept.isDimensionItem
@@ -257,7 +257,7 @@ class PresentationGroup(object):
         self.buildLabel(concept, preferredLabel)
 
         # sort children, we are doing this as we go.
-        node.childrenList = sorted(node.childrenList, key = lambda thing : thing.arelleRelationship.order)
+        node.childrenList = sorted(node.childrenList, key = lambda thing : thing.relationship.order)
 
         # recurse
         for childNode in node.childrenList:
@@ -293,17 +293,17 @@ class PresentationGroup(object):
 
     def printPresentationGroup(self):
         for rn in self.rootNodeList:
-            self.filing.controller.logTrace(str(rn.arelleConcept.qname))
+            self.filing.controller.logTrace(str(rn.concept.qname))
             self.recursivePrint(rn, '\t')
         self.filing.controller.logTrace('\n\n')
 
     def recursivePrint(self, presentationGroupNode, tabString):
         for kid in presentationGroupNode.childrenList:
-            if kid.arelleRelationship is not None:
+            if kid.relationship is not None:
                 self.filing.modelXbrl.debug("debug",
                                           _('%(tabs)s%(concept)s    order: %(order)s    preferred label: %(label)s'),
-                                          modelObject=kid.arelleConcept, tabs=tabString, 
-                                          concept=kid.arelleConcept.qname, order=kid.arelleRelationship.order, label=kid.arelleRelationship.preferredLabel)
+                                          modelObject=kid.concept, tabs=tabString, 
+                                          concept=kid.concept.qname, order=kid.relationship.order, label=kid.relationship.preferredLabel)
             else: # it's a Member or default
-                self.filing.controller.logTrace(tabString + (str(kid.arelleConcept.qname) if kid.arelleConcept is not None else "(missing concept)"))
+                self.filing.controller.logTrace(tabString + (str(kid.concept.qname) if kid.concept is not None else "(missing concept)"))
             self.recursivePrint(kid, tabString + '\t')

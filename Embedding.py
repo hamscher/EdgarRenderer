@@ -8,7 +8,7 @@ are not subject to domestic copyright protection. 17 U.S.C. 105.
 """
 
 from collections import defaultdict
-import arelle.ModelValue
+from . import Brel as brel
 from . import Utils
 Filing = None
 
@@ -83,7 +83,7 @@ class Embedding(object):
         for pseudoaxisQname, (ignore, presentationGroupOrderForAxis) in self.cube.axisAndMemberOrderDict.items():
             axes.add(pseudoaxisQname)
             if presentationGroupOrderForAxis is not None:  # unit, period and primary don't have a presentationGroup order
-                axisLabel = self.cube.hasAxes[pseudoaxisQname].arelleConcept.label()
+                axisLabel = self.cube.hasAxes[pseudoaxisQname].concept.label()
                 if axisLabel is None:
                     axisLabel = ''
                 orderedListOfOrderAxisQnameTuples += [(presentationGroupOrderForAxis, pseudoaxisQname, axisLabel)]
@@ -102,7 +102,7 @@ class Embedding(object):
 
             for parts in self.filing.builtinEquityRowAxes:
                 (prefix, namespaceuri, localname) = parts
-                qname = arelle.ModelValue.QName(prefix, namespaceuri, localname)
+                qname = brel.QName(prefix, namespaceuri, localname)
                 if qname in axes:
                     self.commandTextListOfLists += [['row', qname, 'compact', '*']]
                     self.localnamesMovedToRows += [localname]
@@ -276,7 +276,7 @@ class Embedding(object):
             
         # if any typed dimensions, get values to order them
         for pseudoAxis, (giveMemGetPositionDict, ignore) in self.cube.axisAndMemberOrderDict.items():
-            if isinstance(pseudoAxis, arelle.ModelValue.QName) and "!?isTypedDimensionAxis?!" in giveMemGetPositionDict:
+            if isinstance(pseudoAxis, brel.QName) and "!?isTypedDimensionAxis?!" in giveMemGetPositionDict:
                 # get fact member values for this pseudo axis
                 try: # try to sort by native value
                     for typedMember in sorted((getMemberOnAxisForFactDict[pseudoAxis]
@@ -462,7 +462,7 @@ class Embedding(object):
                                   'axis %(axis)s has no default.'),
                                 modelObject=self.factThatContainsEmbeddedCommand,
                                 cube=self.cube.shortName, error=errorStr, element=fact.qname, context=fact.contextID, 
-                                axis=axis.arelleConcept.qname)
+                                axis=axis.concept.qname)
                         return None
                 if pseudoAxisName in self.cube.defaultFilteredOutAxisSet:  # this isn't checked earlier to give the above warning a chance to be issued
                     return None

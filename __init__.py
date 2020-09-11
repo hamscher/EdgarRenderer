@@ -19,7 +19,7 @@ license and protected by usual Arelle copyright and license.  GitHub allows one 
 inspect the changes log of the plugin branch from the SEC contributed branch to identify
 modifications to the original.
 
-This code is in gitHub/arelle/EdgarRenderer the edgr154 branch.
+This code is in gitHub/arelle/EdgarRenderer .
 
 Installable applications are available with this module for Windows and MacOS on 
 http://arelle.org/download.  The GUI versions run this code after selecting the
@@ -58,7 +58,7 @@ the file system) and a single output zip (all in memory, not on the file system)
 
 a) when invoking via arelleCmdLine.py:
 
-   python3.4 arelleCmdLine.py (or arelleCmdLine, windows, or ./arelleCmdLine, Mac)
+   python3 arelleCmdLine.py (or arelleCmdLine, windows, or ./arelleCmdLine, Mac)
    -f "/mydir/test/filingInstanceXsdAndLinkbases.zip" 
    -o "/mydir/test/out.zip" 
    --plugins EdgarRenderer # if installed in plugins, else full path to it: /mydir/myplugins/EdgarRenderer" 
@@ -98,7 +98,7 @@ b) when invoking via REST interface (built in webserver or cgi-bin server):
     
 To run (as in EDGAR) with output report files added to the submission directory
 
-   python3.4 arelleCmdLine.py  (or arelleCmdLine for Win/Mac apps)
+   python3 arelleCmdLine.py  (or arelleCmdLine for Win/Mac apps)
    -f "/mydir/test/amd.zip" 
    -r "/mydir/test"  <<- the submission + output reports directory 
    --logFile logToBuffer or an specify an xml log file <<- required to save log messages into filing summary
@@ -144,15 +144,11 @@ from collections import defaultdict
 from os import getcwd, remove, removedirs
 from os.path import join, isfile, exists, dirname, basename, isdir
 from optparse import OptionParser, SUPPRESS_HELP
-import datetime, zipfile, logging, shutil, gettext, time, shlex, sys, traceback, linecache, os, re, io, tempfile
+import zipfile, logging, shutil, gettext, time, sys, traceback, os, re, io, tempfile
+from gettext import gettext as _
 from . import Brel as brel
-
-from arelle import (Cntlr, FileSource, ModelDocument, XmlUtil, Version, ModelValue, Locale, PluginManager, WebCache, ModelFormulaObject,
-                    ViewFileFactList, ViewFileFactTable, ViewFileConcepts, ViewFileFormulae,
-                    ViewFileRelationshipSet, ViewFileTests, ViewFileRssFeed, ViewFileRoleTypes)
-from arelle.PluginManager import pluginClassMethods
-from arelle.ValidateFilingText import referencedFiles
 from . import RefManager, IoManager, Inline, Utils, Filing, Summary
+from arelle.PluginManager import pluginClassMethods
 
 MODULENAME = os.path.basename(os.path.dirname(__file__))
 
@@ -226,11 +222,11 @@ def edgarRendererCmdLineOptionExtender(parser, *args, **kwargs):
 
 
 
-class EdgarRenderer(Cntlr.Cntlr):
+class EdgarRenderer(brel.Cntlr):
     """
     .. class:: EdgarRenderer()
     
-    Initialization sets up for platform via Cntlr.Cntlr.
+    Initialization sets up for platform via brel.Cntlr
     """
 
     def __init__(self, cntlr):
@@ -249,7 +245,7 @@ class EdgarRenderer(Cntlr.Cntlr):
         self.createdFolders = []
         self.success = True
 
-    # wrap controler properties as needed
+    # wrap controller properties as needed
 
     @property
     def modelManager(self):
@@ -884,7 +880,7 @@ class EdgarRenderer(Cntlr.Cntlr):
                     for filename in set(inputsToCopyToOutputList): # set() to deduplicate if multiple references
                         _filepath = os.path.join(_xbrldir, filename)
                         if sourceZipStream is not None:
-                            file = FileSource.openFileSource(_filepath, cntlr, sourceZipStream).file(_filepath, binary=True)[0]
+                            file = brel.openFileSource(_filepath, cntlr, sourceZipStream).file(_filepath, binary=True)[0]
                         else:
                             if filesource.isArchive and filesource.baseurl == _xbrldir:
                                 # filename may not include parent directories within the zip
@@ -983,7 +979,7 @@ class EdgarRenderer(Cntlr.Cntlr):
                                         else:
                                             _filepath = os.path.join(_xbrldir, reportedFile)
                                         if sourceZipStream is not None:
-                                            file = FileSource.openFileSource(_filepath, cntlr, sourceZipStream).file(_filepath, binary=True)[0]
+                                            file = brel.openFileSource(_filepath, cntlr, sourceZipStream).file(_filepath, binary=True)[0]
                                         else:
                                             file = filesource.file(_filepath, binary=True)[0]  # returned in a tuple
                                         xbrlZip.writestr(reportedFile, file.read())
@@ -1017,7 +1013,6 @@ class EdgarRenderer(Cntlr.Cntlr):
                             del self.createdFolders[:] # prevent any other use of created folders
                         self.logDebug(_("Successfully post-processed to {}.").format(result))
                     except OSError as err:
-                        #self.logError(_(ErrorMgr.getError('POST_PROCESSING_ERROR').format(err)))
                         self.logError(_("Failure: Post-processing I/O or OS error: {}").format(err))
                         self.success = False
             except Exception as ex:
@@ -1032,7 +1027,6 @@ class EdgarRenderer(Cntlr.Cntlr):
 
     def postprocessFailure(self, options):
         if self.isSingles:
-            #message = ErrorMgr.getError('CANNOT_PROCESS_INPUT_FILE').format(self.entrypoint)
             self.logError("Cannot process input file {}.".format(self.entrypoint), file=__file__ + ' postprocessFailure')
         else:
             try:
@@ -1044,7 +1038,6 @@ class EdgarRenderer(Cntlr.Cntlr):
                     open(self.failFile, 'w').close()
                 errlogpath = join(self.deliveryFolder, os.path.basename(self.zipOutputFile)[:-8] + '_errorLog.txt')
                 if isfile(errlogpath): os.remove(errlogpath)
-                #self.logError(_(ErrorMgr.getError('CANNOT_PROCESS_ZIP_FILE')).format(options.entrypoint))
                 self.logDebug(_("Cannot process zip file {}; moving to fail folder.").format(options.entrypointFile))
                 IoManager.move_clobbering_file(options.entrypointFile, self.errorsFolder)
                 print(self.deliveryFolder + " " + errlogpath)
@@ -1062,7 +1055,6 @@ class EdgarRenderer(Cntlr.Cntlr):
 
 
             except OSError as err:
-                #self.logError(_(ErrorMgr.getError('POST_PROCESSING_ERROR').format(err)))
                 self.logError(_("Failure: Post-processing I/O or OS error: {}").format(err))
 
 
@@ -1081,7 +1073,7 @@ class EdgarRenderer(Cntlr.Cntlr):
         # if both level and code were given, err on the side of more logging:
         messageLevel = max(level, messageLevel)
         if self.entrypoint is not None and len(self.instanceList + self.inlineList) > 1:
-            message += ' --' + (self.entrypoint.url if isinstance(self.entrypoint,FileSource.FileSource) else self.entrypoint)
+            message += ' --' + (self.entrypoint.url if isinstance(self.entrypoint,brel.FileSource) else self.entrypoint)
         message = message.encode('utf-8', 'replace').decode('utf-8')
         if messageLevel >= logging.INFO:
             self.ErrorMsgs.append(Utils.Errmsg(messageCode, message))
@@ -1189,7 +1181,7 @@ def edgarRendererGuiRun(cntlr, modelXbrl, attach, *args, **kwargs):
             _summaryXslt = ('Summarize.xslt', '')[_combinedReports] # no FilingSummary.htm for Rall.htm production  
             _ixRedline = ""
         isNonEFMorGFMinline = (not getattr(cntlr.modelManager.disclosureSystem, "EFMplugin", False) and
-                               modelXbrl.modelDocument.type in (ModelDocument.Type.INLINEXBRL, ModelDocument.Type.INLINEXBRLDOCUMENTSET))
+                               modelXbrl.modelDocument.type in (brel.Type.INLINEXBRL, brel.Type.INLINEXBRLDOCUMENTSET))
         # may use GUI mode to process a single instance or test suite
         options = Utils.attrdict(# simulate options that CntlrCmdLine provides
             configFile = os.path.join(os.path.dirname(__file__), 'conf', 'config_for_instance.xml'),
@@ -1233,23 +1225,23 @@ def edgarRendererGuiRun(cntlr, modelXbrl, attach, *args, **kwargs):
             logMessageTextFile = None,
             logFile = None # from cntlrCmdLine but need to simulate for GUI operation
         )
-        if modelXbrl.modelDocument.type in ModelDocument.Type.TESTCASETYPES:
+        if modelXbrl.modelDocument.type in brel.Type.TESTCASETYPES:
             modelXbrl.efmOptions = options  # save options in testcase's modelXbrl
-        if modelXbrl.modelDocument.type not in (ModelDocument.Type.INLINEXBRL, ModelDocument.Type.INSTANCE, ModelDocument.Type.INLINEXBRLDOCUMENTSET):
+        if modelXbrl.modelDocument.type not in (brel.Type.INLINEXBRL, brel.Type.INSTANCE, brel.Type.INLINEXBRLDOCUMENTSET):
             return
         reportedFiles = set()
-        if modelXbrl.modelDocument.type == ModelDocument.Type.INLINEXBRLDOCUMENTSET:
+        if modelXbrl.modelDocument.type == brel.Type.INLINEXBRLDOCUMENTSET:
             for ixDoc in modelXbrl.modelDocument.referencesDocument.keys():
-                if ixDoc.type == ModelDocument.Type.INLINEXBRL:
+                if ixDoc.type == brel.Type.INLINEXBRL:
                     reportedFiles.add(ixDoc.basename)
         else:
             reportedFiles.add(modelXbrl.modelDocument.basename)
-        reportedFiles |= referencedFiles(modelXbrl)
+        reportedFiles |= brel.referencedFiles(modelXbrl)
         sourceDir = modelXbrl.modelDocument.filepathdir
         def addRefDocs(doc):
-            if doc.type == ModelDocument.Type.INLINEXBRLDOCUMENTSET:
+            if doc.type == brel.Type.INLINEXBRLDOCUMENTSET:
                 for ixDoc in doc.referencesDocument.keys():
-                    if ixDoc.type == ModelDocument.Type.INLINEXBRL:
+                    if ixDoc.type == brel.Type.INLINEXBRL:
                         addRefDocs(ixDoc)
                 return
             for refDoc in doc.referencesDocument.keys():
@@ -1259,12 +1251,12 @@ def edgarRendererGuiRun(cntlr, modelXbrl, attach, *args, **kwargs):
                         reportedFiles.add(reportedFile)
                         addRefDocs(refDoc)
         addRefDocs(modelXbrl.modelDocument)
-        instDocs = ([modelXbrl.modelDocument] if modelXbrl.modelDocument.type != ModelDocument.Type.INLINEXBRLDOCUMENTSET
+        instDocs = ([modelXbrl.modelDocument] if modelXbrl.modelDocument.type != brel.Type.INLINEXBRLDOCUMENTSET
                     else [])+ [ixDoc
                                for ixDoc in sorted(modelXbrl.modelDocument.referencesDocument.keys(), key=lambda d: d.objectIndex)
-                               if ixDoc.type == ModelDocument.Type.INLINEXBRL]
+                               if ixDoc.type == brel.Type.INLINEXBRL]
         report = Utils.attrdict( # simulate report
-            isInline = modelXbrl.modelDocument.type in (ModelDocument.Type.INLINEXBRL, ModelDocument.Type.INLINEXBRLDOCUMENTSET),
+            isInline = modelXbrl.modelDocument.type in (brel.Type.INLINEXBRL, brel.Type.INLINEXBRLDOCUMENTSET),
             reportedFiles = reportedFiles,
             renderedFiles = set(),
             entryPoint = {"file": modelXbrl.modelDocument.uri},

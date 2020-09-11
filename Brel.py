@@ -97,7 +97,8 @@ class Type:
     RSSFEED = arelle.ModelDocument.Type.RSSFEED
     ARCSINFOSET = arelle.ModelDocument.Type.ARCSINFOSET
     FACTDIMSINFOSET = arelle.ModelDocument.Type.FACTDIMSINFOSET
-
+    
+    TESTCASETYPES = (TESTCASESINDEX, TESTCASE, REGISTRY, REGISTRYTESTCASE, XPATHTESTSUITE)
 
 
 """
@@ -108,10 +109,23 @@ ModelResource = arelle.ModelDtsObject.ModelResource
 
 
 """
-replacements for arelle.ModelObject
+replacements for arelle.ModelValue
 """
 
-QName = arelle.ModelObject.QName
+QName = arelle.ModelValue.QName
 
+"""
+Miscellaneous replacements
+"""
 
+referencedFiles = arelle.ValidateFilingText.referencedFiles
 
+collapseWhitespace = arelle.XmlUtil.collapseWhitespace
+descendantAttr = arelle.XmlUtil.descendantAttr
+
+VALID = arelle.XmlValidate.VALID
+VALID_NO_CONTENT = arelle.XmlValidate.VALID_NO_CONTENT
+
+Cntlr = arelle.Cntlr.Cntlr
+
+FileSource = arelle.FileSource
