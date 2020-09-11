@@ -10,7 +10,6 @@ are not subject to domestic copyright protection. 17 U.S.C. 105.
 import os.path, re, time
 from urllib.parse import urlparse,urljoin
 from . import Brel as brel
-import arelle.ModelDocument
 
 taxonomyManagerFile = 'TaxonomyAddonManager.xml'
 
@@ -55,9 +54,9 @@ class RefManager(object):
             for url in self.getUrls(modelXbrl):
                 doc = None
                 try: # isSupplemental is needed here to force the parsing of linkbase.
-                    doc = arelle.ModelDocument.load(modelXbrl,url,isSupplemental=True)
+                    doc = brel.load(modelXbrl,url,isSupplemental=True)
                     loadedAdditionalUrls = True
-                except (arelle.ModelDocument.LoadingException):
+                except (brel.LoadingException):
                     pass
                 if doc is None:
                     #message = ErrorMgr.getError('UNABLE_TO_LOAD_ADDON_LINKBASE')

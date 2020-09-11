@@ -205,7 +205,7 @@ def edgarRendererCmdLineOptionExtender(parser, *args, **kwargs):
     parser.add_option("--renderingLogsXslt", dest="renderingLogsXslt", help=_("Path and name of Stylesheet, if any, for producing filing rendering logs html."))
     parser.add_option("--excelXslt", dest="excelXslt", help=_("Path and name of Stylesheet, if any, for producing Excel 2007 xlsx output."))
     parser.add_option("--auxMetadata", action="store_true", dest="auxMetadata", help=_("Set flag to generate inline xbrl auxiliary files"))
-    # saveTarget* paraameters are added by inlineXbrlDocumentSet.py plugin
+    # saveTarget* parameters are added by inlineXbrlDocumentSet.py plugin
     parser.add_option("--sourceList", action="store", dest="sourceList", help=_("Comma-separated triples of instance file, doc type and source file."))
     parser.add_option("--copyInlineFilesToOutput", action="store_true", dest="copyInlineFilesToOutput", help=_("Set flag to copy all inline files to the output folder or zip."))
     parser.add_option("--copyXbrlFilesToOutput", action="store_true", dest="copyXbrlFilesToOutput", help=_("Set flag to copy all source xbrl files to the output folder or zip."))

@@ -34,30 +34,84 @@ ElementDepthFirstIterator = lxml.etree.ElementDepthFirstIterator
 replacements for arelle
 """
 import arelle
-from arelle import (XbrlConst)
+#from arelle import (XbrlConst)
 
+"""
+replacements for arelle.XbrlConst
+"""
 # name spaces
 xbrli = arelle.XbrlConst.xbrli
 link = arelle.XbrlConst.link
 xlink = arelle.XbrlConst.xlink
+xhtml = arelle.XbrlConst.xhtml
+ixbrl11 = arelle.XbrlConst.ixbrl11
+xsd = arelle.XbrlConst.xsd
+ixbrlAll = arelle.XbrlConst.ixbrlAll
 
 # arc roles
 summationItem = arelle.XbrlConst.summationItem
 parentChild = arelle.XbrlConst.parentChild
 conceptLabel = arelle.XbrlConst.conceptLabel
 conceptReference = arelle.XbrlConst.conceptReference
+dimensionDefault = arelle.XbrlConst.dimensionDefault
+dimensionDomain = arelle.XbrlConst.dimensionDomain
 
 # roles
 defaultLinkRole = arelle.XbrlConst.defaultLinkRole
 documentationLabel = arelle.XbrlConst.documentationLabel
 
+# Clark notations
+cnXbrliIdentifier = "{"+xbrli+"}xbrli:identifier"
+
 # q names
 qnIXbrl11Hidden = arelle.XbrlConst.qnIXbrl11Hidden
-qnXbrliIdentifier = arelle.XbrlConst.qnXbrliIdentifier
+qnXbrliIdentifier = arelle.ModelObject.qname(cnXbrliIdentifier)
+qnLinkPresentationArc = arelle.XbrlConst.qnLinkPresentationArc
+qnLinkPresentationLink = arelle.XbrlConst.qnLinkPresentationLink
 
 """
-is the class even needed?
+replacements for arelle.ModelDocument
 """
-class brel(object):
-    def __init__(self):
-        pass
+
+load = arelle.ModelDocument.load
+LoadingException = arelle.ModelDocument.LoadingException
+
+class Type:
+    UnknownXML = arelle.ModelDocument.Type.UnknownXML
+    UnknownNonXML = arelle.ModelDocument.Type.UnknownNonXML
+    UnknownTypes = arelle.ModelDocument.Type.UnknownTypes  # to test if any unknown type, use <= Type.UnknownTypes
+    firstXBRLtype = arelle.ModelDocument.Type.firstXBRLtype
+    SCHEMA = arelle.ModelDocument.Type.SCHEMA
+    LINKBASE = arelle.ModelDocument.Type.LINKBASE
+    INSTANCE = arelle.ModelDocument.Type.INSTANCE
+    INLINEXBRL = arelle.ModelDocument.Type.INLINEXBRL
+    lastXBRLtype = arelle.ModelDocument.Type.lastXBRLtype
+    DTSENTRIES = arelle.ModelDocument.Type.DTSENTRIES
+    INLINEXBRLDOCUMENTSET = arelle.ModelDocument.Type.INLINEXBRLDOCUMENTSET
+    VERSIONINGREPORT = arelle.ModelDocument.Type.VERSIONINGREPORT
+    TESTCASESINDEX = arelle.ModelDocument.Type.TESTCASESINDEX
+    TESTCASE = arelle.ModelDocument.Type.TESTCASE
+    REGISTRY = arelle.ModelDocument.Type.REGISTRY
+    REGISTRYTESTCASE = arelle.ModelDocument.Type.REGISTRYTESTCASE
+    XPATHTESTSUITE = arelle.ModelDocument.Type.XPATHTESTSUITE
+    RSSFEED = arelle.ModelDocument.Type.RSSFEED
+    ARCSINFOSET = arelle.ModelDocument.Type.ARCSINFOSET
+    FACTDIMSINFOSET = arelle.ModelDocument.Type.FACTDIMSINFOSET
+
+
+
+"""
+replacements for arelle.ModelDts
+"""
+ModelConcept = arelle.ModelDtsObject.ModelConcept
+ModelResource = arelle.ModelDtsObject.ModelResource
+
+
+"""
+replacements for arelle.ModelObject
+"""
+
+QName = arelle.ModelObject.QName
+
+
+

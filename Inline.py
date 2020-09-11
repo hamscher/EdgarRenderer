@@ -9,9 +9,10 @@ Saves extracted instance document.
 
 (c) Copyright 2013 Mark V Systems Limited, All rights reserved.
 '''
-from arelle.PluginManager import pluginClassMethods
-from arelle.ModelDocument import Type
 import os, zipfile, io
+from gettext import gettext as _
+from . import Brel as brel
+from arelle.PluginManager import pluginClassMethods
 
 MANIFEST_NAMESPACE = "http://disclosure.edinet-fsa.go.jp/2013/manifest"
 DEFAULT_INSTANCE_EXT = ".xml"  # the extension on the instance to be saved
@@ -20,7 +21,7 @@ USUAL_INSTANCE_EXTS = {"xml", "xbrl"}
 
 def saveTargetDocumentIfNeeded(cntlr, options, modelXbrl, filing, suffix="_htm.", iext=".xml"):  
     if (modelXbrl is None): return
-    if modelXbrl.modelDocument.type not in (Type.INLINEXBRL, Type.INLINEXBRLDOCUMENTSET):
+    if modelXbrl.modelDocument.type not in (brel.Type.INLINEXBRL, brel.Type.INLINEXBRLDOCUMENTSET):
         cntlr.logTrace(_("No Inline XBRL document."))
         return
     modelDocument = modelXbrl.modelDocument
@@ -28,20 +29,20 @@ def saveTargetDocumentIfNeeded(cntlr, options, modelXbrl, filing, suffix="_htm."
     if ((options.saveTargetFiling or options.saveTargetInstance) and
         (cntlr.reportZip or cntlr.reportsFolder is not None)):
         if options.saveTargetFiling:
-            (path, _) = os.path.splitext(modelDocument.filepath)
+            (path, ignore) = os.path.splitext(modelDocument.filepath)
             if cntlr.reportZip:
                 saveTargetPath = os.path.basename(path) + suffix + 'zip'
             elif cntlr.reportsFolder is not None:
                 saveTargetPath = os.path.join(cntlr.reportsFolder, os.path.basename(path) + suffix + 'zip')
     else: return       
-    if modelDocument.type == Type.INLINEXBRLDOCUMENTSET:
+    if modelDocument.type == brel.Type.INLINEXBRLDOCUMENTSET:
         targetBasename = os.path.basename(modelDocument.targetDocumentPreferredFilename)
         targetSchemaRefs = modelDocument.targetDocumentSchemaRefs
     else:
         targetBasename = modelDocument.basename
         targetSchemaRefs = set(modelDocument.relativeUri(referencedDoc.uri)
                                for referencedDoc in modelDocument.referencesDocument.keys()
-                               if referencedDoc.type == Type.SCHEMA)
+                               if referencedDoc.type == brel.Type.SCHEMA)
     filepath, fileext = os.path.splitext(os.path.join(cntlr.reportsFolder or "", targetBasename))
     if fileext not in USUAL_INSTANCE_EXTS: fileext = iext
     targetFilename = filepath + fileext

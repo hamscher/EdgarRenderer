@@ -9,7 +9,7 @@ are not subject to domestic copyright protection. 17 U.S.C. 105.
 
 from collections import defaultdict
 from . import Utils
-from arelle.XbrlConst import parentChild, qnLinkPresentationArc, qnLinkPresentationLink
+from . import Brel as brel
 
 class PresentationGroupNode(object):
     def __init__(self, arelleConcept, arelleRelationship, mayBeUnitConcept, typedValue=None):
@@ -24,7 +24,7 @@ class PresentationGroupNode(object):
         self.typedValue = typedValue
 
     def __str__(self):
-        if self.TypedValue is not none:
+        if self.TypedValue is not None:
             return "[typedValue: {} with {!s} children]".format(self.typedValue, self.arelleRelationship.preferredLabel, len(self.childrenList))
         return "[{} {} with {!s} children]".format(self.arelleConcept.qname, self.arelleRelationship.preferredLabel, len(self.childrenList))
 
@@ -34,7 +34,7 @@ class PresentationGroup(object):
         self.filing = filing
         self.cube = cube
         self.rootNodeList = []
-        self.linkRelationshipSet = self.filing.modelXbrl.relationshipSet(parentChild, self.cube.linkroleUri)
+        self.linkRelationshipSet = self.filing.modelXbrl.relationshipSet(brel.parentChild, self.cube.linkroleUri)
         self.unitOrdering = []
         self.relationshipToChildNodeDict = {}
 
@@ -60,7 +60,7 @@ class PresentationGroup(object):
             self.buildLabel(axisConcept)
 
             giveMemGetPositionDict = {}
-            default = axis.defaultArelleConcept
+            default = axis.defaultConcept
             if default is not None:
                 rn.childrenList += [PresentationGroupNode(default, None, False)]
                 self.buildLabel(default)
@@ -105,7 +105,7 @@ class PresentationGroup(object):
                     #message = ErrorMgr.getError('PRESENTATION_GROUP_DIRECTED_CYCLE_ERROR').format(self.cube.shortName)
                     self.filing.modelXbrl.error("xbrl.5.2.4.2",
                         _("Relationships have a %(cycle)s cycle in arcrole %(arcrole)s \nlink role %(linkrole)s \nlink %(linkname)s, \narc %(arcname)s, \npath %(path)s"),
-                        modelObject=relationship, cycle="directed", arcrole=parentChild, arcname=qnLinkPresentationArc, linkname=qnLinkPresentationLink,
+                        modelObject=relationship, cycle="directed", arcrole=brel.parentChild, arcname=brel.qnLinkPresentationArc, linkname=brel.qnLinkPresentationLink,
                         path = str(concept.qname) + " " + " - ".join(
                             "{0}:{1} {2}".format(rel.modelDocument.basename, rel.sourceline, rel.toModelObject.qname)
                             for rel in reversed(localRelationshipSet)

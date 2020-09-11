@@ -8,7 +8,7 @@ are not subject to domestic copyright protection. 17 U.S.C. 105.
 """
 
 # must prevent EDGAR from writing into system directories, use environment variable:
-# MPLCONFIGDIR= ... arelle's xdgConfigHome value
+# MPLCONFIGDIR= ... same as xdgConfigHome value
 from matplotlib import use as matplotlib_use
 # must initialize matplotlib to not use tkinter or $DISPLAY (before other imports)
 matplotlib_use("Agg")
@@ -21,7 +21,7 @@ SubElement = brel.SubElement
 from . import Utils
 Filing = None
 
-xlinkRole = '{' + brel.xlink + '}role' # constant belongs in XbrlConsts`headingList
+xlinkRole = '{' + brel.xlink + '}role' 
 
 class Report(object):
     def __init__(self, filing, cube, embedding):
@@ -310,7 +310,7 @@ class Report(object):
         if len(self.promotedAxes) == 0:
             return
 
-        def dontPromoteUnlessMultipleNonHiddenRowsOrCols(rowOrColList, rowOrColStr):
+        def dontPromoteUnlessMultipleNonHiddenRowsOrCols(rowOrColList, rowOrColStr): #@UnusedVariable
             # if there's only one non-hidden row or col at this point, don't promote anything for it.
             if (rowOrColStr == 'row' and self.numVisibleRows == 1) or (rowOrColStr == 'col' and self.numVisibleColumns == 1):
                 self.promotedAxes = [axisTriple for axisTriple in self.promotedAxes if axisTriple[1] != rowOrColStr]
@@ -322,7 +322,7 @@ class Report(object):
             dontPromoteUnlessMultipleNonHiddenRowsOrCols(self.colList, 'col')
 
         unitStrToAppendToEnd = None
-        for axis, ignore, s in self.promotedAxes:
+        for axis, ignore, s in self.promotedAxes: #@UnusedVariable
             if axis == 'unit':
                 unitStrToAppendToEnd = s
             else:
@@ -563,7 +563,7 @@ class Report(object):
                 for cell in row.cellList:
                     if cell is not None and not cell.column.isHidden and not cell.fact.isNil:
                         try:
-                            cell.scalingFactor, cell.quantum, ignore = self.scalingFactorsQuantaSymbolTupleDict[cell.fact.unitID]
+                            cell.scalingFactor, cell.quantum, ignore = self.scalingFactorsQuantaSymbolTupleDict[cell.fact.unitID] #@UnusedVariable
                         except KeyError:
                             pass
 
@@ -893,10 +893,10 @@ class Report(object):
 
         unitSet = set()
         unitAndMaybeSymbolList = []
-        for arelleFactSet in sortedListOfFactSets:
+        for factSet in sortedListOfFactSets:
             # we need a fact for each unit, why?  because the type of the unit is actually in the element declaration
             # so we do all this just to pull the fact out and pass it to getUnitAndSymbolStr, which will probably call fact.unitSymbol()
-            for fact in sorted(arelleFactSet, key = lambda thing : thing.unit.sourceline or 0):
+            for fact in sorted(factSet, key = lambda thing : thing.unit.sourceline or 0):
                 if fact.unit not in unitSet:
                     unitSet.add(fact.unit)
                     unitSymbolStr = Utils.getUnitAndSymbolStr(fact)
@@ -917,11 +917,11 @@ class Report(object):
     # if all facts in the row are using the same unit. 
     def appendUnitsToRowsIfUnitsOnColsAndRowHasOnlyOneUnit(self, row):
         # the length is 1, so let's pull out the first in list.
-        unitType, arelleFactSet = list(row.unitTypeToFactSetDefaultDict.items())[0]
+        unitType, factSet = list(row.unitTypeToFactSetDefaultDict.items())[0]
 
         # there could be multiple currencies, like USD, JPY, make sure there are not.
-        if len({fact.unit for fact in arelleFactSet}) == 1:
-            return Utils.getSymbolStr(list(arelleFactSet)[0])
+        if len({fact.unit for fact in factSet}) == 1:
+            return Utils.getSymbolStr(list(factSet)[0])
 
         # we have to do something special where the row is all perShare, but in different currencies.
         elif unitType == 'perShareDerivedType':
@@ -1214,7 +1214,7 @@ class Report(object):
 
         numYears = len(factList)
         if numYears > 20:
-            errorStr = Utils.printErrorStringToDisambiguateEmbeddedOrNot(self.embedding.factThatContainsEmbeddedCommand)
+            ignoreErrorStr = Utils.printErrorStringToDisambiguateEmbeddedOrNot(self.embedding.factThatContainsEmbeddedCommand)
             self.filing.modelXbrl.error("EFM.6.26.08",
                                     _("In ''%(linkroleName)s'', the embedded report created by the fact %(fact)s with context "
                                       "%(contextID)s, there are %(numYears)s Annual Return Facts, but there must not be more than 20."),
@@ -1314,7 +1314,7 @@ class Row(object):
         self.IsAbstractGroupTitle = IsAbstractGroupTitle
         self.factList = []
         self.level = level
-        self.cellList = [None for ignore in range(report.numColumns)]
+        self.cellList = [None for ignore in range(report.numColumns)] #@UnusedVariable
         self.footnoteNumberSet = set()
         self.originalElementQname = elementQname
 
@@ -1333,7 +1333,7 @@ class Row(object):
         self.context = None
         if not (isSegmentTitle or IsAbstractGroupTitle):
             self.context = factAxisMemberGroup.fact.context
-            if self.context == None and not validatedForEFM: # use Arelle validation message
+            if self.context == None and not self.filing.validatedForEFM: 
                 filing.modelXbrl.error("xbrl.4.6.1:itemContextRef",
                     _("Item %(fact)s in presentation group \"$(linkroleName)s\" must have a context"),
                     modelObject=factAxisMemberGroup.fact, fact=factAxisMemberGroup.fact.qname,
@@ -1813,7 +1813,7 @@ class Cell(object):
             if fig == 'tooManyFacts':
                 pass
             elif fig is None:
-                errorStr = Utils.printErrorStringToDisambiguateEmbeddedOrNot(embedding.factThatContainsEmbeddedCommand)
+                ignoreErrorStr = Utils.printErrorStringToDisambiguateEmbeddedOrNot(embedding.factThatContainsEmbeddedCommand)
                 #message = ErrorMgr.getError('FIGURE_HAS_NO_FACTS_WARNING').format(embedding.cube.shortName, errorStr)
                 self.filing.modelXbrl.warning("EFM.6.26.07",
                                         _("In ''%(linkroleName)s'', the embedded report created by the fact %(fact)s with context %(contextID)s, "

@@ -13,7 +13,6 @@ from collections import defaultdict
 import os, re, math, datetime, dateutil.relativedelta, time
 from . import Brel as brel
 
-import arelle.XbrlConst
 import arelle.ModelValue
 from arelle.ModelDtsObject import ModelConcept
 from arelle.ModelObject import ModelObject
@@ -299,21 +298,21 @@ class Filing(object):
 
         else:
             # build cubes
-            for linkroleUri in self.modelXbrl.relationshipSet(arelle.XbrlConst.parentChild).linkRoleUris:
+            for linkroleUri in self.modelXbrl.relationshipSet(brel.parentChild).linkRoleUris:
                 cube = Cube.Cube(self, linkroleUri)
                 self.cubeDict[linkroleUri] = cube
                 cube.presentationGroup = PresentationGroup.PresentationGroup(self, cube)
 
             # handle axes across all cubes where defaults are missing in the definition or presentation linkbases
             # presentation linkbase
-            parentChildRelationshipSet = self.modelXbrl.relationshipSet(arelle.XbrlConst.parentChild)
+            parentChildRelationshipSet = self.modelXbrl.relationshipSet(brel.parentChild)
             parentChildRelationshipSet.loadModelRelationshipsTo()
             parentChildRelationshipSet.loadModelRelationshipsFrom()
             # Find the axes in presentation groups
             toDimensions = {c for c in parentChildRelationshipSet.modelRelationshipsTo.keys() if isinstance(c,ModelConcept) and c.isDimensionItem}
             fromDimensions = {c for c in parentChildRelationshipSet.modelRelationshipsFrom.keys() if isinstance(c,ModelConcept) and c.isDimensionItem}
             # definition linkbase
-            dimensionDefaultRelationshipSet = self.modelXbrl.relationshipSet(arelle.XbrlConst.dimensionDefault)
+            dimensionDefaultRelationshipSet = self.modelXbrl.relationshipSet(brel.dimensionDefault)
             dimensionDefaultRelationshipSet.loadModelRelationshipsFrom()
             for concept in set.union(fromDimensions,toDimensions):
                 defaultSet = {ddrel.toModelObject for ddrel in dimensionDefaultRelationshipSet.modelRelationshipsFrom[concept]}
@@ -416,7 +415,7 @@ class Filing(object):
 
             # build presentation groups
             for concept in self.modelXbrl.qnameConcepts.values():
-                for relationship in self.modelXbrl.relationshipSet(arelle.XbrlConst.parentChild).toModelObject(concept):
+                for relationship in self.modelXbrl.relationshipSet(brel.parentChild).toModelObject(concept):
                     cube = self.cubeDict[relationship.linkrole]
                     cube.presentationGroup.traverseToRootOrRoots(concept, None, None, None, []) # HF: path to roots has to be list for proper error reporting
                     try:
@@ -560,8 +559,8 @@ class Filing(object):
                         axis = self.axisDict[dimensionConcept.qname]
                     except KeyError:
                         axis = Axis(dimensionConcept)
-                        for relationship in self.modelXbrl.relationshipSet(arelle.XbrlConst.dimensionDefault).fromModelObject(dimensionConcept):
-                            axis.defaultArelleConcept = relationship.toModelObject
+                        for relationship in self.modelXbrl.relationshipSet(brel.dimensionDefault).fromModelObject(dimensionConcept):
+                            axis.defaultConcept = relationship.toModelObject
                             break
                         self.axisDict[dimensionConcept.qname] = axis
                     if arelleDimension.isExplicit: # if true, Member exists, else None. there's also isTyped, for typed dims.
@@ -1145,13 +1144,13 @@ class Axis(object):
         self.inCubes = {}
         self.hasMembers = set()
         self.arelleConcept = arelleConcept
-        self.defaultArelleConcept = None
+        self.defaultConcept = None
     def linkCube(self, cubeObj):
         self.inCubes[cubeObj.linkroleUri] = cubeObj
     def linkMember(self, memObj):
         self.hasMembers.add(memObj)
     def __repr__(self):
-        return "axis(arelleConcept={}, default={})".format(self.arelleConcept, self.defaultArelleConcept)
+        return "axis(arelleConcept={}, default={})".format(self.arelleConcept, self.defaultConcept)
 
 class Member(object):
     def __init__(self, explicitMember=None, typedMember=None):

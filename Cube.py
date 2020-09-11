@@ -9,7 +9,7 @@ are not subject to domestic copyright protection. 17 U.S.C. 105.
 
 import re
 from collections import defaultdict
-from arelle.ModelObject import QName
+from . import Brel as brel
 from . import Utils
 Filing = None
 
@@ -331,8 +331,8 @@ class Cube(object):
             self.controller.logDebug("Special sort of {} {} needed".format(axisQname,giveMemGetPositionDict))
             prefix = axis.prefix
             nsuri = axis.namespaceURI
-            ordering = [QName(prefix,nsuri,name) for name in members]   
-            overrideordering = [QName(prefix,nsuri,name) for name in lastmembers]
+            ordering = [brel.QName(prefix,nsuri,name) for name in members]   
+            overrideordering = [brel.QName(prefix,nsuri,name) for name in lastmembers]
             memberList = Utils.heapsort(memberList,(lambda x,y: Utils.compareInOrdering(x,y,ordering,overrideordering)))
             giveMemGetPositionDict = dict([(x,i) for i,x in enumerate(memberList)])
             self.controller.logDebug("Resulted in {}".format(giveMemGetPositionDict))

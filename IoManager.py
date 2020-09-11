@@ -7,13 +7,11 @@ Data and content created by government employees within the scope of their emplo
 are not subject to domestic copyright protection. 17 U.S.C. 105.
 """
 
-from . import Brel as brel
-from os import getpid, remove, makedirs, getenv, listdir
+from os import getpid, remove, makedirs, listdir
 from os.path import basename, isfile, abspath, isdir, dirname, exists, join, splitext, normpath
 from io import IOBase
 import json, re, shutil, sys, datetime, os, zipfile
-import arelle.XbrlConst
-
+from . import Brel as brel
 from . import Utils
 
 jsonIndent = 1  # None for most compact, 0 for left aligned
@@ -225,7 +223,7 @@ def isSurvivor(controller, original, base, entry, targetOrStream):  # return boo
     ns = ln = ixns = None
     if result is not None:
         ns, ln, ixns = result
-    if (ns, ln, ixns) == (arelle.XbrlConst.xhtml, 'html', arelle.XbrlConst.ixbrl11):
+    if (ns, ln, ixns) == (brel.xhtml, 'html', brel.ixbrl11):
         if entry is None or entry == base:
             controller.logDebug("Found Inline 1.1 Doc in {0}: {1}".format(original, base), file=basename(__file__))
             controller.inlineList += [base]
@@ -233,9 +231,9 @@ def isSurvivor(controller, original, base, entry, targetOrStream):  # return boo
             controller.logDebug("Ignoring Inline 1.1 Doc in {0} not the specified entry {1}: {2}"
                            .format(original, entry, base), file=basename(__file__))
             return False
-    elif (ns, ln) == (arelle.XbrlConst.xhtml, 'html') and ixns in arelle.XbrlConst.ixbrlAll:
+    elif (ns, ln) == (brel.xhtml, 'html') and ixns in brel.ixbrlAll:
         controller.logDebug("Only Inline 1.1 is supported, ignoring Inline 1.0 doc {0} in {1}".format(original,base),file=basename(__file__))
-    elif (ns, ln) == (arelle.XbrlConst.xbrli, 'xbrl'):
+    elif (ns, ln) == (brel.xbrli, 'xbrl'):
         if entry is None or entry == base:
             controller.logDebug("Found Instance Doc in {0}: {1}".format(original, base), file=basename(__file__))
             controller.instanceList += [base]
@@ -243,10 +241,10 @@ def isSurvivor(controller, original, base, entry, targetOrStream):  # return boo
             controller.logDebug("Ignoring Instance Doc in {0} not the specified entry {1}: {2}"
                            .format(original, entry, base), file=basename(__file__))
             return False
-    elif (ns, ln) == (arelle.XbrlConst.link, 'linkbase'):
+    elif (ns, ln) == (brel.link, 'linkbase'):
         controller.logDebug("Found Linkbase in {}: {}".format(original, base), file=basename(__file__))
         controller.otherXbrlList += [base]
-    elif (ns, ln) == (arelle.XbrlConst.xsd, 'schema'):
+    elif (ns, ln) == (brel.xsd, 'schema'):
         controller.logDebug("Found schema in {}: {}".format(original, base), file=basename(__file__))
         controller.otherXbrlList += [base]
     else:
@@ -268,7 +266,7 @@ def getQName(controller, pathname): # return ns, localname, and inline namespace
         for event, element in brel.iterparse(f.buffer, events=('start','start-ns')):
             if event == 'start-ns':
                 ignore, uri = element
-                if uri in arelle.XbrlConst.ixbrlAll:
+                if uri in brel.ixbrlAll:
                     inlineNamespaceBound = uri
             elif event == 'start':
                 qname = brel.QName(element.tag)

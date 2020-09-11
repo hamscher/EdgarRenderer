@@ -242,7 +242,7 @@ class Embedding(object):
             commandsToPrint = self.rowCommands
 
         if missingRowOrColStr is not None:
-            errorStr = Utils.printErrorStringToDisambiguateEmbeddedOrNot(self.factThatContainsEmbeddedCommand)
+            ignoreErrorStr = Utils.printErrorStringToDisambiguateEmbeddedOrNot(self.factThatContainsEmbeddedCommand)
             #beginMessage = ErrorMgr.getError('EMBEDDED_COMMANDS_ALL_ROWS_OR_ALL_COLUMNS_ERROR').format(self.cube.shortName, errorStr, missingRowOrColStr)
             _msgCodes = ("EFM.6.26.05.embeddingCmdMissingIterator", "EFM.6.26.05.embeddingCmdMissingIteratorAfterTransposition")
             self.filing.modelXbrl.error(_msgCodes[self.cube.isTransposed],
@@ -431,7 +431,7 @@ class Embedding(object):
 
     # this builds a factAxisMember and sets the memberLabel and axisMemberPositionTuple attributes.
     # it also decides whether to filter the fact.
-    def generateFactAxisMemberForNonPrimary(self, fact, axisIndex, periodStartEndLabel, pseudoAxisName, getMemberOnAxisForFactDict):
+    def generateFactAxisMemberForNonPrimary(self, fact, axisIndex, periodStartEndLabel, pseudoAxisName, getMemberOnAxisForFactDict): #@UnusedVariable
         getMemberPositionsOnAxisDict = self.getMemberPositionsOnAxisDictOfDicts[pseudoAxisName]
         memberLabel = None
         memberQname = getMemberOnAxisForFactDict.get(pseudoAxisName)
@@ -449,7 +449,7 @@ class Embedding(object):
                     return None # this fact is on a real axis with the default filtered out, so it's filtered too
                 axis = self.cube.hasAxes[pseudoAxisName]
                 try:
-                    axisDefaultQname = axis.defaultArelleConcept.qname
+                    axisDefaultQname = axis.defaultConcept.qname
                 except AttributeError:
                     axisDefaultQname = None
                     # we dont want to filter uncategorized facts.  it is possible that fact is defaulted on an axis with no default
@@ -457,7 +457,6 @@ class Embedding(object):
                     # that it wasn't in any other report.  so, in this case, we manufacture a label.
                     if not self.cube.isUncategorizedFacts:
                         errorStr = Utils.printErrorStringToDisambiguateEmbeddedOrNot(self.factThatContainsEmbeddedCommand)
-                        #message = ErrorMgr.getError('AXIS_HAS_NO_DEFAULT').format(self.cube.shortName, errorStr, fact.qname, fact.contextID, axis.arelleConcept.qname)
                         self.filing.modelXbrl.debug("debug",
                                 _('In "%(cube)s"%(error)s, the fact %(element)s with context %(context)s was filtered because the ' 
                                   'axis %(axis)s has no default.'),
@@ -621,7 +620,7 @@ class Command(object):
     def processCommandBuildgetMemberPositionsOnAxisDictOfDicts(self):
         if self.cube.isElements and self.pseudoAxis == 'primary' and self.rowOrColumn == 'column':
             self.rowOrColumn = 'row' # we will fix it for them
-            errorStr = Utils.printErrorStringToDisambiguateEmbeddedOrNot(self.embedding.factThatContainsEmbeddedCommand)
+            ignoreErrorStr = Utils.printErrorStringToDisambiguateEmbeddedOrNot(self.embedding.factThatContainsEmbeddedCommand)
             #message = ErrorMgr.getError('ELEMENTS_USED_PRIMARY_ON_COLUMNS_WARNING').format(self.cube.shortName, errorStr)
             self.filing.modelXbrl.warning("EFM.6.26.09",
                     _("In ''%(linkroleName)s'' the embedded report created by the fact %(fact)s with context %(contextID)s "
@@ -642,7 +641,7 @@ class Command(object):
             #     message = ErrorMgr.getError('EMBEDDED_COMMAND_WARNING2_GROUPED_USED_FOR_PRIMARY').format(errorStr)
             #     self.addToLog(message, messageCode='warn')
             #     self.formattingType ='compact'
-            # elif self.pseudoAxis not in {'period', 'unit'} and self.filing.axisDict[self.pseudoAxis].defaultArelleConcept is None:
+            # elif self.pseudoAxis not in {'period', 'unit'} and self.filing.axisDict[self.pseudoAxis].defaultConcept is None:
             #     errorStr = Utils.printErrorStringToDisambiguateEmbeddedOrNot(self.factThatContainsEmbeddedCommand)
             #     message = ErrorMgr.getError('EMBEDDED_COMMAND_GROUPED_USED_WARNING_FOR_INVALID_AXIS').format(errorStr)
             #     self.addToLog(message, messageCode='warn')
@@ -668,8 +667,7 @@ class Command(object):
                 except KeyError:
                     invalidMems.append(mem)
             if invalidMems:
-                errorStr = Utils.printErrorStringToDisambiguateEmbeddedOrNot(self.embedding.factThatContainsEmbeddedCommand)
-                #message = ErrorMgr.getError('EMBEDDED_COMMAND_INVALID_MEMBER_NAME_ERROR').format(self.cube.shortName, errorStr, str(mem))
+                ignoreErrorStr = Utils.printErrorStringToDisambiguateEmbeddedOrNot(self.embedding.factThatContainsEmbeddedCommand)
                 self.filing.modelXbrl.error("EFM.6.26.04.embeddingCmdInvalidMember",
                         _('In "%(linkroleName)s", the embedded report created by the fact %(fact)s '
                           'with the context %(contextID)s, the domain members %(members)s are not presentation descendants of %(axis)s.'),

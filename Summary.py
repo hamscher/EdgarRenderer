@@ -9,9 +9,6 @@ are not subject to domestic copyright protection. 17 U.S.C. 105.
 import sys, traceback, os.path, re, math, io, logging
 from collections import defaultdict
 from . import Brel as brel
-
-import arelle.ModelDocument
-from arelle.ModelDtsObject import ModelConcept, ModelResource
 from . import IoManager, Utils
 
 metaversion = "2.1"
@@ -36,7 +33,7 @@ def analyzeFactsInCubes(filing): # void
     factCubeCount = controller.factCubeCount = defaultdict(lambda:0)
     factHasHtmlAnchor = controller.factHasHtmlAnchor = defaultdict(set)
     roleHasHtmlAnchor = controller.roleHasHtmlAnchor = defaultdict(set)
-    for role,cube in filing.cubeDict.items():
+    for role,cube in filing.cubeDict.items(): #@UnusedVariable
         for embedding in cube.embeddingList:
             report = embedding.report
             if report is None: continue
@@ -62,7 +59,7 @@ def analyzeFactsInCubes(filing): # void
         for v in s:
             messages += [v]
     for v in sorted(messages,key=lambda x: x[3]): # Messages should be ordered by line number in source doc.
-        (f,cube,atts,line) = v
+        (f,cube,atts,line) = v #@UnusedVariable
         filing.modelXbrl.debug("debug", # NOTE FOR INLINE IMPLEMENTATION should be cascade of error detected by XhtmlValidate.py
                                _("Fact %(fact)s in context %(context)s "
                                  "in \"%(cube)s\" has an HTML anchor (%(anchor)s) that "
@@ -362,7 +359,7 @@ class InstanceSummary(object):
         self.dts = defaultdict(lambda: defaultdict(list)) # self.dts['instance']['local'] returns a list
         self.hasRR = False
         for uri,doc in sorted(modelXbrl.urlDocs.items(), key=lambda i: i[1].objectIndex):
-            if doc.type == arelle.ModelDocument.Type.INLINEXBRLDOCUMENTSET:
+            if doc.type == brel.Type.INLINEXBRLDOCUMENTSET:
                 continue # ignore ixds manifest
             isLocal = uri.startswith(filing.controller.processingFolder)
             (f,rl) = (uri,'remote')
@@ -445,7 +442,7 @@ class InstanceSummary(object):
                 segmentSet.update([(s.dimension,s.member)])
                 if s.dimension is not None: conceptInUseSet.add(s.dimension)
                 if s.member is not None: conceptInUseSet.add(s.member)
-            entitySet.update({itag.text for itag in c.iter(tag=brel.qnXbrliIdentifier.clarkNotation)})
+            entitySet.update({itag.text for itag in c.iter(tag=brel.cnXbrliIdentifier)})
         
         for context in contextsInUseSet:
             entityInUseSet.add(context.entityIdentifier)
@@ -499,8 +496,8 @@ class InstanceSummary(object):
         
         # Assume for the moment that every concept in the presentation link base connects eventually to some fact  
         # TODO: use graph traversal instead.    
-        conceptInUseSet = conceptInUseSet.union({concept for concept in parentChildRelationshipSet.modelRelationshipsFrom.keys() if isinstance(concept,ModelConcept)})
-        conceptInUseSet = conceptInUseSet.union({concept for concept in parentChildRelationshipSet.modelRelationshipsTo.keys() if isinstance(concept,ModelConcept)})
+        conceptInUseSet = conceptInUseSet.union({concept for concept in parentChildRelationshipSet.modelRelationshipsFrom.keys() if isinstance(concept,brel.ModelConcept)})
+        conceptInUseSet = conceptInUseSet.union({concept for concept in parentChildRelationshipSet.modelRelationshipsTo.keys() if isinstance(concept,brel.ModelConcept)})
 
         # Do not add a concept just because it has a label or a reference.
         conceptLabelRelationshipSet = modelXbrl.relationshipSet(brel.conceptLabel)
@@ -516,7 +513,7 @@ class InstanceSummary(object):
             if fromConcept in conceptInUseSet and len(toRels) > 0:
                 for rel in toRels:
                     toReference = rel.toModelObject
-                    if isinstance(toReference, ModelResource):
+                    if isinstance(toReference, brel.ModelResource):
                         r = []
                         for elt in toReference.iterchildren():
                             s = elt.text
@@ -611,10 +608,10 @@ class InstanceSummary(object):
                         elif ('contextRef' in e.attrib):
                             if (not e.parentQname == hiddenQname):
                                 context = e.context
-                                hash = context.dimsHash
-                                if (hash in rrSectionDimsHashDict):
-                                     if (len(rrSectionDimsHashDict[hash]) == 0):
-                                         rrSectionDimsHashDict[hash] = (e.objectIndex+1,e)
+                                _hash = context.dimsHash
+                                if (_hash in rrSectionDimsHashDict):
+                                    if (len(rrSectionDimsHashDict[_hash]) == 0):
+                                        rrSectionDimsHashDict[_hash] = (e.objectIndex+1,e)
             rrSections = sorted(rrSectionDimsHashDict.values())
             rrSections = [pair for pair in rrSections if len(pair) == 2]
             self.rrSectionFacts = []
