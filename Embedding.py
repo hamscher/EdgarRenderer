@@ -276,7 +276,7 @@ class Embedding(object):
             
         # if any typed dimensions, get values to order them
         for pseudoAxis, (giveMemGetPositionDict, ignore) in self.cube.axisAndMemberOrderDict.items():
-            if isinstance(pseudoAxis, brel.QName) and "!?isTypedDimensionAxis?!" in giveMemGetPositionDict:
+            if brel.isQName(pseudoAxis) and "!?isTypedDimensionAxis?!" in giveMemGetPositionDict:
                 # get fact member values for this pseudo axis
                 try: # try to sort by native value
                     for typedMember in sorted((getMemberOnAxisForFactDict[pseudoAxis]

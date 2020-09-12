@@ -496,8 +496,8 @@ class InstanceSummary(object):
         
         # Assume for the moment that every concept in the presentation link base connects eventually to some fact  
         # TODO: use graph traversal instead.    
-        conceptInUseSet = conceptInUseSet.union({concept for concept in parentChildRelationshipSet.modelRelationshipsFrom.keys() if isinstance(concept,brel.ModelConcept)})
-        conceptInUseSet = conceptInUseSet.union({concept for concept in parentChildRelationshipSet.modelRelationshipsTo.keys() if isinstance(concept,brel.ModelConcept)})
+        conceptInUseSet = conceptInUseSet.union({concept for concept in parentChildRelationshipSet.modelRelationshipsFrom.keys() if brel.isModelConcept(concept)})
+        conceptInUseSet = conceptInUseSet.union({concept for concept in parentChildRelationshipSet.modelRelationshipsTo.keys() if brel.isModelConcept(concept)})
 
         # Do not add a concept just because it has a label or a reference.
         conceptLabelRelationshipSet = modelXbrl.relationshipSet(brel.conceptLabel)
@@ -513,7 +513,7 @@ class InstanceSummary(object):
             if fromConcept in conceptInUseSet and len(toRels) > 0:
                 for rel in toRels:
                     toReference = rel.toModelObject
-                    if isinstance(toReference, brel.ModelResource):
+                    if brel.isModelResource(toReference):
                         r = []
                         for elt in toReference.iterchildren():
                             s = elt.text

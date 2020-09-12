@@ -222,7 +222,7 @@ def edgarRendererCmdLineOptionExtender(parser, *args, **kwargs):
 
 
 
-class EdgarRenderer(brel.Cntlr):
+class EdgarRenderer(brel.Cntlr): # why a subclass of brel.Cntlr, since it is delgating to self.cntlr
     """
     .. class:: EdgarRenderer()
     
@@ -231,9 +231,9 @@ class EdgarRenderer(brel.Cntlr):
 
     def __init__(self, cntlr):
         self.VERSION = VERSION
-        self.cntlr = cntlr
-        self.webCache = cntlr.webCache
-        self.preloadedPlugins = {}
+        self.cntlr = cntlr 
+        self.webCache = cntlr.webCache # Why is this not a property?
+        self.preloadedPlugins = {} # Why is this not cntlr.preloadedPlugins?
         self.ErrorMsgs = []
         self.entrypoint = None  # Contains the absolute path of the instance, inline, zip, or folder.
         self.entrypointFolder = None  # Contains absolute folder of instance, inline, or zip; equal to entrypoint if a folder.
@@ -545,7 +545,7 @@ class EdgarRenderer(brel.Cntlr):
         if self.isDaemon:
             self.initializeReDaemonOptions(options)
 
-    def initializeReSinglesOptions(self, options):
+    def initializeReSinglesOptions(self, options): #@UnusedVariable
         # At the moment there are not any options relevant only for single-instance mode.
         return
 
@@ -1225,8 +1225,8 @@ def edgarRendererGuiRun(cntlr, modelXbrl, attach, *args, **kwargs):
             logMessageTextFile = None,
             logFile = None # from cntlrCmdLine but need to simulate for GUI operation
         )
-        if modelXbrl.modelDocument.type in brel.Type.TESTCASETYPES:
-            modelXbrl.efmOptions = options  # save options in testcase's modelXbrl
+#         if modelXbrl.modelDocument.type in brel.Type.TESTCASETYPES:
+#             modelXbrl.efmOptions = options  # save options in testcase's modelXbrl
         if modelXbrl.modelDocument.type not in (brel.Type.INLINEXBRL, brel.Type.INSTANCE, brel.Type.INLINEXBRLDOCUMENTSET):
             return
         reportedFiles = set()
@@ -1358,7 +1358,7 @@ def edgarRendererGuiRun(cntlr, modelXbrl, attach, *args, **kwargs):
 
 def testcaseVariationExpectedSeverity(modelTestcaseVariation, *args, **kwargs):
     # allow severity to appear on any variation sub-element (such as result)
-    _severity = XmlUtil.descendantAttr(modelTestcaseVariation, None, "error", "severity")
+    _severity = brel.descendantAttr(modelTestcaseVariation, None, "error", "severity")
     if _severity is not None:
         return _severity.upper()
     return None

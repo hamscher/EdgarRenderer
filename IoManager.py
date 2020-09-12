@@ -84,7 +84,7 @@ def move_clobbering_file(src, dst):  # this works across Windows drives, simple 
     shutil.copy2(src, destination)
     try:
         remove(src)
-    except OSError as err:
+    except OSError as err: #@UnusedVariable
         # HF: fix msg in next release ("Non fatal Cleanup problem: {}".format(err))
         return None
 

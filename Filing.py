@@ -12,8 +12,6 @@ from gettext import gettext as _
 from collections import defaultdict
 import os, re, math, datetime, dateutil.relativedelta, time
 from . import Brel as brel
-
-
 from . import Cube, Embedding, Report, PresentationGroup, Summary, Utils, Xlout
 
 def mainFun(controller, modelXbrl, outputFolderName):  
@@ -304,8 +302,8 @@ class Filing(object):
             parentChildRelationshipSet.loadModelRelationshipsTo()
             parentChildRelationshipSet.loadModelRelationshipsFrom()
             # Find the axes in presentation groups
-            toDimensions = {c for c in parentChildRelationshipSet.modelRelationshipsTo.keys() if isinstance(c,brel.ModelConcept) and c.isDimensionItem}
-            fromDimensions = {c for c in parentChildRelationshipSet.modelRelationshipsFrom.keys() if isinstance(c,brel.ModelConcept) and c.isDimensionItem}
+            toDimensions = {c for c in parentChildRelationshipSet.modelRelationshipsTo.keys() if brel.isDimensionItem(c)}
+            fromDimensions = {c for c in parentChildRelationshipSet.modelRelationshipsFrom.keys() if brel.isDimensionItem(c)}
             # definition linkbase
             dimensionDefaultRelationshipSet = self.modelXbrl.relationshipSet(brel.dimensionDefault)
             dimensionDefaultRelationshipSet.loadModelRelationshipsFrom()
@@ -450,7 +448,7 @@ class Filing(object):
         for context in self.modelXbrl.contexts.values():
             if context.scenario is not None and not self.validatedForEFM:
                 _childTagNames = [child.prefixedName for child in context.scenario.iterchildren()
-                                  if isinstance(child,brel.ModelObject)]
+                                  if brel.isModelObject(child)]
                 childTags = ", ".join(_childTagNames)
                 self.modelXbrl.error("EFM.6.05.05", # use standard EFM message
                                 _("There must be no segments with non-explicitDimension content, but %(count)s was(were) "
@@ -1164,7 +1162,7 @@ class Member(object):
                 self.typedKey.append(typedElt.modelXbrl.qnameConcepts[typedElt.qname].type.facets["enumeration"][typedElt.xValue].objectIndex)
             except (AttributeError, IndexError, TypeError):
                 self.typedKey.append(typedValue)
-            if isinstance(typedValue, brel.IsoDuration):
+            if brel.isIsoDuration(typedValue):
                 self.typedValue.append(typedValue.viewText()) # duration in words instead of lexical notation
             else:
                 self.typedValue.append(str(typedValue)) # displayable typed value
