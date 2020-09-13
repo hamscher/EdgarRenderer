@@ -42,30 +42,30 @@ def analyzeFactsInCubes(filing): # void
                 for i, col in enumerate(report.colList):
                     if col.isHidden: continue
                     if row.cellList[i] is None: continue
-                    f = row.cellList[i].fact
-                    if f is not None:
-                        factCubeCount[f] += 1 # count how many cubes each fact rendered in, for inline navigation.
-                        if f.concept.isTextBlock:
-                            for e in f.iter('*'): # for some reason iter('a') does not work.
+                    fact = row.cellList[i].fact
+                    if fact is not None:
+                        factCubeCount[fact] += 1 # count how many cubes each fact rendered in, for inline navigation.
+                        if fact.concept.isTextBlock:
+                            for e in fact.iter('*'): # for some reason iter('a') does not work.
                                 if e.localName=='a' and \
                                     not 'href' in e.attrib and \
                                     ('id' in e.attrib \
                                         or 'name' in e.attrib):
                                         atts = e.elementAttributesStr
-                                        roleHasHtmlAnchor[cube.linkroleUri].add((str(f.qname),f.contextID,f.xmlLang,atts))
-                                        factHasHtmlAnchor[f].add((f,cube,atts,e.sourceline))
+                                        roleHasHtmlAnchor[cube.linkroleUri].add((str(fact.qname),fact.contextID,fact.xmlLang,atts))
+                                        factHasHtmlAnchor[fact].add((fact,cube,atts,e.sourceline))
     messages = []
     for s in factHasHtmlAnchor.values():
         for v in s:
             messages += [v]
     for v in sorted(messages,key=lambda x: x[3]): # Messages should be ordered by line number in source doc.
-        (f,cube,atts,line) = v #@UnusedVariable
+        (fact,cube,atts,line) = v #@UnusedVariable
         filing.modelXbrl.debug("debug", # NOTE FOR INLINE IMPLEMENTATION should be cascade of error detected by XhtmlValidate.py
                                _("Fact %(fact)s in context %(context)s "
                                  "in \"%(cube)s\" has an HTML anchor (%(anchor)s) that "
                                  "may restrict with usability of the Inline XBRL source document. "
                                  "Please move the HTML anchor outside of the ix:nonNumeric element."),
-                               modelObject=f, fact=f.qname, context=f.contextID,
+                               modelObject=fact, fact=fact.qname, context=fact.contextID,
                                cube=cube.shortName, anchor=atts)
 
 class Summary(object):
@@ -163,16 +163,7 @@ class Summary(object):
         brel.SubElement(reportETree, 'ShortName').text = 'All Reports'
 
         if self.controller.includeLogsInSummary:
-            # only output 100 warnings or errors max, after that it's not helpful.
-            ''' Replace with cntlr log buffer
-            for i, errmsg in enumerate(self.controller.ErrorMsgs):
-                if i == 0:
-                    logs = brel.SubElement(self.rootETree, 'Logs')
-                if i == 100:
-                    brel.SubElement(logs, 'Log', type='Info').text = "There are more than 100 warnings or errors, only 100 will be displayed."
-                    break
-                brel.SubElement(logs, 'Log', type=errmsg.msgCode.title()).text = errmsg.msg
-            '''
+            maxShownMessages = 100 # only output some number of warnings or errors max, after that it's not helpful.
             logHandler = self.controller.cntlr.logHandler
             numShownMessages = 0
             for logRec in getattr(logHandler, "logRecordBuffer") or (): # non buffered handlers don't keep log records (e.g., log to print handler)
@@ -180,8 +171,8 @@ class Summary(object):
                     if numShownMessages == 0:
                         logs = brel.SubElement(self.rootETree, 'Logs')
                         self.controller.summaryHasLogEntries = True
-                    if numShownMessages == 100:
-                        brel.SubElement(logs, 'Log', type='Info').text = "There are more than 100 warnings or errors, only 100 will be displayed."
+                    if numShownMessages == maxShownMessages:
+                        brel.SubElement(logs, 'Log', type='Info').text = "There are more than {} warnings or errors, no more will be displayed.".format(maxShownMessages)
                         break
                     _text = self.controller.formatLogMessage(logRec)
                     brel.SubElement(logs, 'Log', type=logRec.levelname.title()).text = _text

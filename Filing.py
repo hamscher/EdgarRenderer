@@ -15,11 +15,7 @@ from . import Brel as brel
 from . import Cube, Embedding, Report, PresentationGroup, Summary, Utils, Xlout
 
 def mainFun(controller, modelXbrl, outputFolderName):  
-    # occurs upon <?arelle-unit-test location="EdgarRenderer/Filing.py#mainFun" action="AssertionError"?>
-    if "EdgarRenderer/Filing.py#mainFun" in modelXbrl.arelleUnitTests:
-        action = modelXbrl.arelleUnitTests["EdgarRenderer/Filing.py#mainFun"]
-        objectConstructor = __dict__[action]
-        raise objectConstructor("EdgarRenderer/Filing.py#mainFun")
+    brel.mainFunHook(modelXbrl,controller=controller,outputFolderName=outputFolderName)
     _funStartedAt = time.time()
     filing = Filing(controller, modelXbrl, outputFolderName)
     controller.logDebug("Filing initialized {:.3f} secs.".format(time.time() - _funStartedAt)); _funStartedAt = time.time()
@@ -1075,7 +1071,7 @@ class ReportSummary(object):
 
 class StartEndContext(object):
     def __init__(self, context, startEndTuple):
-        # be really careful when using this context.  many contexts from the instance can share this object,
+        # be really careful when using this context - many contexts from the instance can share this object,
         # probably not the right one.
         self.context = context
         self.startTime = startEndTuple[0]

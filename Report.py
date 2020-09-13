@@ -1023,7 +1023,6 @@ class Report(object):
 
     def emitContextRef(self, mcuETree, factAxisMemberList, context):
         contextRefETree = SubElement(mcuETree, 'contextRef')
-
         if context is not None and not context.isForeverPeriod:
             SubElement(contextRefETree, 'ContextID').text = context.id
             SubElement(contextRefETree, 'EntitySchema').text = context.entityIdentifier[0]
@@ -1561,17 +1560,15 @@ class Column(object):
         self.context = factAxisMemberGroup.fact.context
         if self.context is None: # wch added this check.
             errorStr = Utils.printErrorStringToDisambiguateEmbeddedOrNot(report.embedding.factThatContainsEmbeddedCommand)
-            #message = ErrorMgr.getError('COLUMN_WITHOUT_CONTEXT_WARNING').format(report.cube.shortName, errorStr, self.index)
             filing.modelXbrl.debug("debug",
-                                   _('In "%(cube)s%(error)s, column %(column)s has no context.'),
+                                   _('No context in "%(cube)s%(error)s, column %(column)s.'),
                                     modelObject=factAxisMemberGroup.fact, 
                                     cube=report.cube.shortName, error=errorStr, column=self.index)
         self.startEndContext = startEndContext
         if self.startEndContext is None:
             errorStr = Utils.printErrorStringToDisambiguateEmbeddedOrNot(report.embedding.factThatContainsEmbeddedCommand)
-            #message = ErrorMgr.getError('COLUMN_WITHOUT_CONTEXT_WARNING').format(report.cube.shortName, errorStr, self.index)
             filing.modelXbrl.debug("debug",
-                                   _('In "%(cube)s%(error)s, column %(column)s has no startEndContext.'),
+                                   _('No startEndContext in "%(cube)s%(error)s, column %(column)s.'),
                                     modelObject=factAxisMemberGroup.fact, 
                                     cube=report.cube.shortName, error=errorStr, column=self.index)
         self.unitTypeToFactSetDefaultDict = defaultdict(set)

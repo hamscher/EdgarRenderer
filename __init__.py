@@ -222,18 +222,17 @@ def edgarRendererCmdLineOptionExtender(parser, *args, **kwargs):
 
 
 
-class EdgarRenderer(brel.Cntlr): # why a subclass of brel.Cntlr, since it is delgating to self.cntlr
+class EdgarRenderer():
     """
     .. class:: EdgarRenderer()
     
-    Initialization sets up for platform via brel.Cntlr
+    Initialization sets up for delegation to brel.Cntlr
     """
 
     def __init__(self, cntlr):
         self.VERSION = VERSION
         self.cntlr = cntlr 
-        self.webCache = cntlr.webCache # Why is this not a property?
-        self.preloadedPlugins = {} # Why is this not cntlr.preloadedPlugins?
+        self.preloadedPlugins = {} # Unclear why this is here.
         self.ErrorMsgs = []
         self.entrypoint = None  # Contains the absolute path of the instance, inline, zip, or folder.
         self.entrypointFolder = None  # Contains absolute folder of instance, inline, or zip; equal to entrypoint if a folder.
@@ -245,7 +244,7 @@ class EdgarRenderer(brel.Cntlr): # why a subclass of brel.Cntlr, since it is del
         self.createdFolders = []
         self.success = True
 
-    # wrap controller properties as needed
+    # wrap delegated controller properties as needed
 
     @property
     def modelManager(self):
@@ -254,6 +253,10 @@ class EdgarRenderer(brel.Cntlr): # why a subclass of brel.Cntlr, since it is del
     @property
     def logger(self):
         return self.cntlr.logger
+    
+    @property
+    def webCache(self):
+        return self.cntlr.webCache
 
     def processShowOptions(self, options):
         if options.showOptions:  # debug options
@@ -670,7 +673,7 @@ class EdgarRenderer(brel.Cntlr): # why a subclass of brel.Cntlr, since it is del
             self.daemonDequeueInputZip(options) # loop, waiting for an input to process, then returns and processes input as if --file specified the input
 
     def filingStart(self, cntlr, options, entrypointFiles, filing):
-        # start a (mult-iinstance) filing
+        # start a (multi-instance) filing
         filing.edgarRenderer = self
         self.reportZip = filing.reportZip
         self.writeFile = filing.writeFile
@@ -1116,7 +1119,7 @@ def edgarRendererFilingStart(cntlr, options, entrypointFiles, filing, *args, **k
 
 def edgarRendererXbrlRun(cntlr, options, modelXbrl, filing, report, *args, **kwargs):
     """ processes a single instance """
-    filing.edgarRenderer.processInstance(options, modelXbrl, filing, report)
+    filing.edgarRenderer.processInstance(options, brel.ModelXbrl(modelXbrl), filing, report)
 
 def edgarRendererFilingEnd(cntlr, options, filesource, filing, *args, **kwargs):
     """ ends processing of a filing (after all intances have been processed) """
