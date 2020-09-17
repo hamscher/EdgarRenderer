@@ -9,13 +9,14 @@ are not subject to domestic copyright protection. 17 U.S.C. 105.
 from collections import defaultdict
 from builtins import list
 
+
 """
 Brel: simple minded Abstract XBRL instance + DTS Interface
 Initial Implementation via lxml + arelle
 """
 
 """ BREL COMMON """
-from typing import List, Final #@UnusedImport
+from typing import List
 
 class IModelObject:
         
@@ -262,16 +263,7 @@ replacements for arelle.ModelDts.*
 
 class ModelContext(IModelContext):
     """
-    context.dimsHash
-    context.endDatetime
-    context.entityIdentifier
-    context.entityIdentifier[
-    context.id
-    context.isForeverPeriod
-    context.period.
-    context.qnameDims.
-    context.scenario
-    context.scenario.
+    set: {'entityIdentifier', 'segDimValues', 'iter', 'scenario'}
     """
     proxy = {} # class variable containing universe of instances
     props = set() # class variable containing all properties used
@@ -320,7 +312,9 @@ class ModelContext(IModelContext):
 class ModelConcept(IModelConcept):
     proxy = {} # class variable containing universe of instances
     props = set() # class variable containing all properties used
-    # set: {'isMonetary', 'typeQname', 'label', 'type', 'isShares', 'isTextBlock'}
+    """
+    set: {'isTextBlock', 'isAbstract', 'baseXsdType', 'isShares', 'balance', 'isTypedDimension', 'periodType', 'attrib', 'name', 'substitutionGroup', 'isDimensionItem', 'isItem', 'isMonetary', 'modelXbrl', 'qname'}
+    """
     @staticmethod
     def of(concept): 
         assert isinstance(concept,arelle.ModelDtsObject.ModelConcept)
@@ -368,6 +362,9 @@ class ModelLink (IModelLink):
 class ModelResource (IModelResource):
     proxy = {} # class variable containing universe of instances
     props = set() # class variable containing all properties used
+    """
+    set: {'text', 'iterchildren', 'xmlLang', 'role'}
+    """
     @staticmethod
     def of(resource): 
         assert isinstance(resource,arelle.ModelDtsObject.ModelResource)
@@ -382,6 +379,9 @@ class ModelResource (IModelResource):
 class ModelRelationship (IModelRelationship):
     proxy = {} # class variable containing universe of instances
     props = set() # class variable containing all properties used
+    """
+    set: {'order', 'preferredLabel', 'linkrole', 'weight'}
+    """
     @staticmethod
     def of(relationship): 
         assert isinstance(relationship,arelle.ModelDtsObject.ModelRelationship)
@@ -401,6 +401,9 @@ class ModelRelationship (IModelRelationship):
 class ModelRelationshipSet (IModelRelationshipSet):
     proxy = {} # class variable containing universe of instances
     props = set() # class variable containing all properties used
+    """
+    set: set()
+    """
     @staticmethod
     def of(relationshipSet): 
         assert isinstance(relationshipSet,arelle.ModelRelationshipSet.ModelRelationshipSet)
@@ -465,6 +468,7 @@ class ModelRelationshipSet (IModelRelationshipSet):
 class ModelType (IModelType):
     proxy = {} # class variable containing universe of instances
     props = set() # class variable containing all properties used
+    """set: {'name'}"""
     @staticmethod
     def of(modelType): 
         assert isinstance(modelType,arelle.ModelDtsObject.ModelType)
@@ -484,7 +488,9 @@ class ModelType (IModelType):
 class ModelUnit (IModelUnit):
     proxy = {} # class variable containing universe of instances
     props = set() # class variable containing all properties used
-    # set: {'id', 'isSingleMeasure', 'measures', 'value', 'sourceline'}
+    """
+    set: {'value', 'sourceline', 'measures', 'isSingleMeasure'}
+    """
     @staticmethod
     def of(unit): 
         assert isinstance(unit,arelle.ModelInstanceObject.ModelUnit)
@@ -509,6 +515,8 @@ class ModelUnit (IModelUnit):
 class ModelDocument (IModelDocument):
     proxy = {} # class variable containing universe of instances
     props = set() # class variable containing all properties used
+    """
+    """
     @staticmethod
     def of(document): 
         assert isinstance(document,arelle.ModelDocument.ModelDocument)
@@ -530,6 +538,9 @@ class ModelDocument (IModelDocument):
 class ModelDimensionValue (IModelDimensionValue):
     proxy = {} # class variable containing universe of instances
     props = set() # class variable containing all properties used
+    """
+    set: {'memberQname', 'isExplicit', 'dimensionQname', 'typedMember', 'isTyped'}
+    """
     @staticmethod
     def of(dimensionValue): 
         assert isinstance(dimensionValue,arelle.ModelInstanceObject.ModelDimensionValue)
@@ -546,12 +557,14 @@ class ModelDimensionValue (IModelDimensionValue):
                 setattr(self,a,getProxy(_value))
             except AttributeError:
                 pass
-    pass
+
 
 class ModelFact(IModelFact):
     proxy = dict() # class variable
     props = set() # class variable
-    # set: {'utrEntries', 'decimals', 'qname', 'document', 'xValid', 'isNil', 'unit', 'xmlLang', 'unitID', 'value', 'ancestorQnames', 'contextID', 'iter', 'iterancestors', 'isNumeric', 'xsiNil', 'modelXbrl'}
+    """
+    set: {'document', 'contextID', 'iter', 'value', 'unitID', 'xValid', 'utrEntries', 'iterancestors', 'xsiNil', 'modelXbrl', 'ancestorQnames'}
+    """
     @staticmethod
     def of(fact):
         if isinstance(fact,(arelle.ModelInstanceObject.ModelInlineFact)):
@@ -629,6 +642,7 @@ class ModelFact(IModelFact):
 class ModelInlineFact(IModelInlineFact):
     proxy = dict() # class variable
     props = set() # class variable
+    """set()"""
     @staticmethod
     def of(fact): 
         assert isinstance(fact,arelle.ModelInstanceObject.ModelInlineFact)
@@ -651,30 +665,7 @@ class ModelXbrl(IModelXbrl):
     proxy = {} # class variable
     props = set() # class variable
     
-    """arelleUnitTests
-    baseSets
-    debug
-    errors
-    factsByQname
-    fileSource
-    labelroles
-    langs
-    matchSubstitutionGroup
-    modelDocument
-    modelManager
-    modelObjects
-    nameConcepts
-    namespaceDocs
-    profileActivity
-    qnameConcepts
-    relationshipSet
-    relationshipSets
-    roleTypes
-    schemaDocsToValidate
-    skipDTS
-    units
-    urlDocs
-    urlUnloadableDocs"""
+    """set: {'labelroles', 'langs', 'urlUnloadableDocs', 'nameConcepts', 'roleTypes', 'schemaDocsToValidate', 'errors', 'arelleUnitTests', 'baseSets', 'units', 'matchSubstitutionGroup', 'skipDTS', 'debug', 'modelObjects', 'modelManager', 'urlDocs', 'fileSource', 'profileActivity', 'namespaceDocs', 'relationshipSets', 'modelDocument'}"""
 
     @staticmethod
     def of(modelXbrl): 
@@ -716,6 +707,7 @@ maker = {arelle.ModelInstanceObject.ModelFact : ModelFact.of
            ,arelle.ModelXbrl.ModelXbrl : ModelXbrl.of
            ,arelle.ModelDocument.ModelDocument : ModelDocument.of
            ,arelle.ModelInstanceObject.ModelDimensionValue : ModelDimensionValue.of
+           ,arelle.ModelObject.ModelObject : (lambda x: x)
            ,str : (lambda x: x)
            ,int : (lambda x: x)
            ,float : (lambda x: x)
@@ -738,7 +730,7 @@ def getProxy(obj):
         elif obj == None:
             pass
         else: 
-            raise "What is this? {} {}".format(type(obj),obj)
+            raise Exception("error","Cannot get proxy for {} {}".format(type(obj),obj))
     return result
 
 def isDimensionItem(o):

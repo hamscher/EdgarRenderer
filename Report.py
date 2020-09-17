@@ -16,12 +16,15 @@ matplotlib_use("Agg")
 import os, re, datetime, decimal, io, time
 from collections import defaultdict
 from . import Brel as brel
-SubElement = brel.SubElement
-
 from . import Utils
+
+#SubElement = brel.SubElement
 Filing = None
 
 xlinkRole = '{' + brel.xlink + '}role' 
+
+def SubElement(*args,**kwargs):
+    return brel.SubElement(*args,**kwargs)
 
 class Report(object):
     def __init__(self, filing, cube, embedding):
