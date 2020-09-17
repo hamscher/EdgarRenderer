@@ -990,12 +990,16 @@ class EdgarRenderer():
                             filesource.close()
                         xbrlZip.close()
                         zipStream.seek(0)
+                        _destination = None
                         if self.reportZip:
+                            _destination = self.reportZip.filename
                             self.reportZip.writestr(_fileName, zipStream.read())
                         else:
-                            self.writeFile(os.path.join(self.reportsFolder, _fileName), zipStream.read())
+                            _destination = self.reportsFolder
+                            self.writeFile(os.path.join(self.reportsFolder, _fileName), zipStream.read())                            
                         zipStream.close()
-                        self.logDebug("Write {} complete".format(_fileName))
+                        self.logDebug("Write {} to {} complete".format(_fileName,_destination))
+                        
 
                 # occurs upon <?arelle-unit-test location="EFM/Filing.py#validateFiling_start" action="AssertionError"?>
                 if "EdgarRenderer/__init__.py#filingEnd" in filing.arelleUnitTests:

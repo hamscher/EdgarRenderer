@@ -7,7 +7,7 @@ Data and content created by government employees within the scope of their emplo
 are not subject to domestic copyright protection. 17 U.S.C. 105.
 """
 
-from builtins import __dict__
+from builtins import __dict__ #@UnusedImport
 from gettext import gettext as _
 from collections import defaultdict
 import os, re, math, datetime, dateutil.relativedelta, time
@@ -144,6 +144,8 @@ def mainFun(controller, modelXbrl, outputFolderName):
         
     controller.instanceSummaryList += [Summary.InstanceSummary(filing, modelXbrl)]  
     controller.logDebug("Filing finish {:.3f} secs.".format(time.time() - _funStartedAt)); _funStartedAt = time.time()
+    
+    
     return True
 
 
@@ -270,7 +272,8 @@ class Filing(object):
 
 
     def populateAndLinkClasses(self, uncategorizedCube = None):
-        duplicateFacts = self.modelXbrl.duplicateFactSet = set()
+        # on 2nd invocation, there is a set of unused facts.
+        duplicateFacts = self.modelXbrl.duplicateFactSet = set() # self.duplicateFactSet is never used.
         dupFactFootnoteOrigin = {} # original fact of duplicate
 
         if uncategorizedCube is not None:
@@ -295,11 +298,11 @@ class Filing(object):
             # handle axes across all cubes where defaults are missing in the definition or presentation linkbases
             # presentation linkbase
             parentChildRelationshipSet = self.modelXbrl.relationshipSet(brel.parentChild)
-            parentChildRelationshipSet.loadModelRelationshipsTo()
-            parentChildRelationshipSet.loadModelRelationshipsFrom()
+            parentChildRelationshipSet.loadModelRelationshipsTo() # dict of concept to relationship
+            parentChildRelationshipSet.loadModelRelationshipsFrom() # dict of concept to relationship
             # Find the axes in presentation groups
-            toDimensions = {c for c in parentChildRelationshipSet.modelRelationshipsTo.keys() if brel.isDimensionItem(c)}
-            fromDimensions = {c for c in parentChildRelationshipSet.modelRelationshipsFrom.keys() if brel.isDimensionItem(c)}
+            toDimensions = {c for c in parentChildRelationshipSet.modelRelationshipsTo.keys() if c.isDimensionItem}
+            fromDimensions = {c for c in parentChildRelationshipSet.modelRelationshipsFrom.keys() if c.isDimensionItem}
             # definition linkbase
             dimensionDefaultRelationshipSet = self.modelXbrl.relationshipSet(brel.dimensionDefault)
             dimensionDefaultRelationshipSet.loadModelRelationshipsFrom()
@@ -312,10 +315,12 @@ class Filing(object):
                                        for pcrel in Utils.modelRelationshipsTransitiveFrom(parentChildRelationshipSet, concept, linkroleUri, set())
                                        if pcrel.toModelObject in defaultSet}
                     if (len(defaultSet)==0  # axis had no default at all
-                            or defaultSet != defaultChildSet):
+                            or defaultSet != defaultChildSet): # or there were additional default children
                         cube = self.cubeDict[linkroleUri]
-                        cube.defaultFilteredOutAxisSet.add(concept.qname)             
-
+                        cube.defaultFilteredOutAxisSet.add(concept.qname)
+            # return each parentChildRelationshipSet to gc
+            # del dimensionDefaultRelationshipSet, parentChildRelationshipSet
+            
             # print warnings of missing defaults for each cube
             for cube in self.cubeDict.values():
                 if len(cube.defaultFilteredOutAxisSet) > 0:
@@ -403,8 +408,9 @@ class Filing(object):
                     break # we don't need to look at more facts from the fact set, we're just trying to make elements.
 
             # build presentation groups
-            for concept in self.modelXbrl.qnameConcepts.values():
-                for relationship in self.modelXbrl.relationshipSet(brel.parentChild).toModelObject(concept):
+            for concept in filter(lambda c: c.isItem,self.modelXbrl.qnameConcepts.values()):
+                relationshipSet = self.modelXbrl.relationshipSet(brel.parentChild).toModelObject(concept)
+                for relationship in relationshipSet:
                     cube = self.cubeDict[relationship.linkrole]
                     cube.presentationGroup.traverseToRootOrRoots(concept, None, None, None, []) # HF: path to roots has to be list for proper error reporting
                     try:
@@ -492,7 +498,7 @@ class Filing(object):
 
                 if not isEmbeddedCommand and re.compile('[a-zA-Z-]+:[a-zA-Z]+').match(fact.value):
                     try:
-                        prefix, _, localName = fact.value.partition(':')
+                        prefix, ignore, localName = fact.value.partition(':')
                         namespaceURI = self.modelXbrl.prefixedNamespaces[prefix]
                         qname = brel.QName(prefix, namespaceURI, localName)
                         if qname in self.modelXbrl.qnameConcepts:
@@ -548,7 +554,13 @@ class Filing(object):
                         axis = self.axisDict[dimensionConcept.qname]
                     except KeyError:
                         axis = Axis(dimensionConcept)
-                        for relationship in self.modelXbrl.relationshipSet(brel.dimensionDefault).fromModelObject(dimensionConcept):
+                        relationshipSet = self.modelXbrl.relationshipSet(brel.dimensionDefault)
+                        relationships = relationshipSet.fromModelObject(dimensionConcept)
+                        if len(relationships)==0:
+                            self.modelXbrl.debug("debug"
+                                                 ,_("Explicit dimension %(dimension)s dangling in presentation with no default member")
+                                                 ,dimension=dimensionPair.dimensionQname)
+                        for relationship in relationships:
                             axis.defaultConcept = relationship.toModelObject
                             break
                         self.axisDict[dimensionConcept.qname] = axis
@@ -585,8 +597,7 @@ class Filing(object):
                     cube.unitAxis[fact.unit.id] = fact.unit
                 if startEndContext is not None:
                     cube.timeAxis.add(startEndContext)
-
-
+        return
 
 
     def checkForEmbeddedCommandAndProcessIt(self, fact):
@@ -594,7 +605,7 @@ class Filing(object):
         _, tilde, rightOfTilde = fact.value.partition('~')
         if tilde == '':
             return False
-        leftOfTilde, tilde, _ = rightOfTilde.partition('~')
+        leftOfTilde, tilde, ignore = rightOfTilde.partition('~')
         if not tilde or not leftOfTilde or leftOfTilde.isspace():
             return False
         commandText = leftOfTilde
@@ -899,7 +910,9 @@ class Filing(object):
             report.setAndMergeFootnoteRowsAndColumns('col', report.colList)
 
         report.removeVerticalInteriorSymbols()
-        self.controller.logDebug("R{} cols, rows, footnotes {:.3f} secs.".format(cube.fileNumber, time.time() - _rStartedAt)); _rStartedAt = time.time()
+        self.controller.logDebug("R{} {} facts, {} cols, {} rows, {} footnotes {:.3f} secs.".format(
+            cube.fileNumber, len(report.cube.factMemberships), len(report.rowList), len(report.colList), len(report.footnoteTextList), time.time() - _rStartedAt))
+        _rStartedAt = time.time()
 
         #if len(embedding.groupedAxisQnameSet) > 0:
         #    report.handleGrouped()

@@ -46,14 +46,9 @@ def analyzeFactsInCubes(filing): # void
                     if fact is not None:
                         factCubeCount[fact] += 1 # count how many cubes each fact rendered in, for inline navigation.
                         if fact.concept.isTextBlock:
-                            for e in fact.iter('*'): # for some reason iter('a') does not work.
-                                if e.localName=='a' and \
-                                    not 'href' in e.attrib and \
-                                    ('id' in e.attrib \
-                                        or 'name' in e.attrib):
-                                        atts = e.elementAttributesStr
-                                        roleHasHtmlAnchor[cube.linkroleUri].add((str(fact.qname),fact.contextID,fact.xmlLang,atts))
-                                        factHasHtmlAnchor[fact].add((fact,cube,atts,e.sourceline))
+                            for (atts, sourceline) in fact.anchorsInTextBlock():
+                                roleHasHtmlAnchor[cube.linkroleUri].add((str(fact.qname),fact.contextID,fact.xmlLang,atts))
+                                factHasHtmlAnchor[fact].add((fact,cube,atts,sourceline))
     messages = []
     for s in factHasHtmlAnchor.values():
         for v in s:

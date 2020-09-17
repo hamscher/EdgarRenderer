@@ -9,30 +9,36 @@ are not subject to domestic copyright protection. 17 U.S.C. 105.
 import re, sys, math, logging
 from decimal import Decimal
 from . import Brel as brel
+from . import Filing, Cube, Embedding
+from typing import Callable, List 
 
 
 durationStartRoleError = "durationStartRoleError"  # fake role URI to indicate that a periodStart label role was put on a duration concept.
 durationEndRoleError = "durationEndRoleError"  # fake role URI to indicate that a periodEnd label role was put on a duration concept.
 durationStartEndRolesError = [durationStartRoleError, durationEndRoleError]
 
-def isPeriodStartLabel(preferredLabel):
+def isPeriodStartLabel(preferredLabel : str) -> bool:
     if preferredLabel is None:
         return False
     return 'periodstart' in preferredLabel.casefold()
-def isPeriodEndLabel(preferredLabel):
+
+def isPeriodEndLabel(preferredLabel: str) -> bool:
     if preferredLabel is None:
         return False
     return 'periodend' in preferredLabel.casefold()
-def isPeriodStartOrEndLabel(preferredLabel):
+
+def isPeriodStartOrEndLabel(preferredLabel: str) -> bool:
     if preferredLabel is None:
         return False
     preferredLabelLower = preferredLabel.casefold()
     return 'periodstart' in preferredLabelLower or 'periodend' in preferredLabelLower
-def isNegatedLabel(preferredLabel):
+
+def isNegatedLabel(preferredLabel: str) -> bool:
     if preferredLabel is None:
         return False
     return 'negated' in preferredLabel.casefold()
-def isTotalLabel(preferredLabel):
+
+def isTotalLabel(preferredLabel: str) -> bool:
     if preferredLabel is None:
         return False
     return 'total' in preferredLabel.casefold()
@@ -41,20 +47,20 @@ minNumber = -sys.maxsize - 1
 efmStandardAuthorities = ["sec.gov", "fasb.org", "xbrl.org", "xbrl.us", "w3.org", "ifrs.org"]
 
 
-def isRate(fact, filing):
+def isRate(fact : brel.ModelFact, filing : Filing) -> bool:
     return   (isFactTypeEqualToOrDerivedFrom(fact, isPercentItemTypeQname) or
              (isFactTypeEqualToOrDerivedFrom(fact, isPureItemTypeQname) and
                 (isEfmInvestNamespace(fact.qname.namespaceURI) or filing.isRR)) or
              (fact.unit is not None and fact.unit.isSingleMeasure and 
               any(utrEntry.unitId == 'Rate' for utrEntry in fact.utrEntries.copy())))
 
-def printErrorStringToDisambiguateEmbeddedOrNot(embeddedCommandFact):
+def printErrorStringToDisambiguateEmbeddedOrNot(embeddedCommandFact : brel.ModelFact) -> str:
     if embeddedCommandFact is None:
         return ''
     return ', in the embedded report created by the embedding textBlock fact {!s}, with the context {!s}'.format(
                                                     embeddedCommandFact.qname, embeddedCommandFact.contextID)
 
-def printErrorStringToDiscribeEmbeddedTextBlockFact(embeddedCommandFact):
+def printErrorStringToDiscribeEmbeddedTextBlockFact(embeddedCommandFact : brel.ModelFact) -> str:
     if embeddedCommandFact is None:
         return ''
     return 'the embedded commands of the textBlock fact {!s}, with the context {!s}'.format(
@@ -67,7 +73,7 @@ def hideEmptyRows(rowList):
             row.hide()
 
 
-def booleanFromString(x):
+def booleanFromString(x : str) -> bool:
     if x is None:
         return False
     elif isinstance(x, bool):
@@ -108,14 +114,14 @@ def isEfmStandardNamespace(namespaceUri):
 def isEfmInvestNamespace(namespaceUri):
     return isEfmInvestNamespaceRegex.match(namespaceUri) and True
 
-def matchedDurationRoles(role1, role2):  # True if the roles are both period start or are both period end roles.
+def matchedDurationRoles(role1 : str, role2 : str) -> bool:  # True if the roles are both period start or are both period end roles.
     if 'Start' in role1 and 'Start' in role2:
         return True
     if 'End' in role1 and 'End' in role2:
         return True
     return False
 
-def hasCustomNamespace(thing):
+def hasCustomNamespace(thing) -> bool:
     if type(thing) == str:
         return not isEfmStandardNamespace(thing)
     elif type(thing) in [list, tuple]:
@@ -133,7 +139,7 @@ def xbrlErrors(modelXbrl):
         return [r for r in handler.logRecordBuffer if r.levelno >= logging.ERROR]
     except: return []
 
-def getUnitStr(fact):
+def getUnitStr(fact : brel.ModelFact) -> str:
     if fact.unit is None:
         return ('', False)
     if (fact.unit.value).find(':') == -1:  # if unit.value doesn't give a qname
@@ -142,7 +148,7 @@ def getUnitStr(fact):
         unitStr = fact.unitSymbol()
     return (unitStr, 'pure' in unitStr.casefold())
 
-def getUnitAndSymbolStr(fact):
+def getUnitAndSymbolStr(fact : brel.ModelFact) -> str:
     if fact is not None and fact.unit is not None:
         if not fact.unit.isSingleMeasure:
             symbolStr = fact.unitSymbol()
@@ -156,14 +162,14 @@ def getUnitAndSymbolStr(fact):
             if symbolStr != '':
                 return '{} ({})'.format(unitStr, symbolStr)
 
-def getSymbolStr(fact):
+def getSymbolStr(fact : brel.ModelFact) -> str:
     if fact is not None and fact.unit is not None:
         symbolStr = fact.unitSymbol() or fact.unitID
         if 'pure' not in symbolStr:
             return symbolStr
 
 
-def handleDuration(valueStr):
+def handleDuration(valueStr : str) -> str:
     # if value "P10Y" it will output "10 years".
     # if value "P10Y to P12Y", we output "10 years to 12 years"
 
@@ -175,7 +181,7 @@ def handleDuration(valueStr):
                        (None if matchObj.group('min') is None else Decimal(matchObj.group('min')), 'minute'), \
                        (None if matchObj.group('s') is None else Decimal(matchObj.group('s')), 'second')]
 
-        # this section is to inteligently handle zeros.  if a duration has a zero and other numbers, ignore the zeros.
+        # this section is to intelligently handle zeros.  if a duration has a zero and other numbers, ignore the zeros.
         # So, P0Y1M is just one month.  if they're all zeros, just print the biggest so P0Y0M and P0Y both print 0 years.        
         numStrsSet = {tup[0] for tup in orderedList}
         allZeroOrNone = numStrsSet <= {Decimal(0), None}
@@ -225,7 +231,7 @@ def handleDuration(valueStr):
     return re.sub(re.compile(beforeT + TAndAfter), durationPrettyPrint, valueStr.strip()) 
 
 
-def strFactValue(fact, preferredLabel=None, filing=None, report=None):
+def strFactValue(fact : brel.ModelFact, preferredLabel=None, filing=None, report=None) -> str:
     if fact.isNil:
         return ''
     valueStr = fact.value
@@ -260,12 +266,11 @@ def strFactValue(fact, preferredLabel=None, filing=None, report=None):
     return valueStr
 
 
-def prettyPrintQname(localName):
+def prettyPrintQname(localName : str) -> str:
     # \g<1> will match to the char that matched ([a-z]) and similarly for \g<2>.
     return re.sub('([a-z])([A-Z0-9])', '\g<1> \g<2>', localName)
 
-
-def isTypeQnameDerivedFrom(modelXbrl, typeQname, predicate):
+def isTypeQnameDerivedFrom(modelXbrl : brel.ModelXbrl, typeQname, predicate : Callable [...,bool]):
     if typeQname is None: return False
     if predicate(typeQname): return True
     if typeQname not in modelXbrl.qnameTypes: return False  # we reached the root
@@ -276,7 +281,7 @@ def isTypeQnameDerivedFrom(modelXbrl, typeQname, predicate):
         return next((True for q in qnamesDerivedFrom if predicate(q)), False)
     return isTypeQnameDerivedFrom(modelXbrl, qnamesDerivedFrom, predicate)
 
-def isFactTypeEqualToOrDerivedFrom(fact, predicate):
+def isFactTypeEqualToOrDerivedFrom(fact : brel.ModelXbrl, predicate : Callable [...,bool]):
     if fact is None or fact.concept is None: return False
     conceptTypeQname = fact.concept.typeQname
     return (predicate(conceptTypeQname) or isTypeQnameDerivedFrom(fact.modelXbrl, conceptTypeQname, predicate))
@@ -304,14 +309,15 @@ def isDurationItemTypeQname(typeQname):
 
 def modelRelationshipsTransitiveFrom(relationshipSet, concept, linkroleUri, resultSet):
     """Return the subset of a relationship set in the transitive closure starting from concept, limited to linkroleUri."""
-    for r in relationshipSet.modelRelationshipsFrom[concept]:
-        if r.linkrole == linkroleUri and r not in resultSet:
-            resultSet.add(r)
-            modelRelationshipsTransitiveFrom(relationshipSet,r.toModelObject,linkroleUri,resultSet)
+    if concept in relationshipSet.modelRelationshipsFrom: # this is a default dict, no need to grow it.
+        for r in relationshipSet.modelRelationshipsFrom[concept]:
+            if r.linkrole == linkroleUri and r not in resultSet:
+                resultSet.add(r)
+                modelRelationshipsTransitiveFrom(relationshipSet,r.toModelObject,linkroleUri,resultSet)
     return resultSet
 
 
-def heapsort(l, cmp):  # l is a list, cmp is a two-argument fn
+def heapsort(l : List[object], cmp : Callable[[object,object],int]):
     n = len(l)
     if n < 2:
         return l
@@ -341,10 +347,10 @@ def heapsort(l, cmp):  # l is a list, cmp is a two-argument fn
             break
     return nl
 
-def compareInOrdering(x, y, l, o):
-    if x in o:
+def compareInOrdering(x : object, y : object, l : List[object], override : List[object]) -> int:
+    if x in override:
         return -1
-    try:  # return -1 if x comes after y in list l, otherwise return 0
+    try:  # return -1 if x is in override OR comes after y in list l, otherwise return 0
         tail = l[l.index(y) + 1:]  # tail is what comes after y
         if x in tail:
             return -1
@@ -352,7 +358,7 @@ def compareInOrdering(x, y, l, o):
         pass
     return 0
 
-def commonPrefix(str1, str2):  # count characters that form the prefix of both str1 and str2
+def commonPrefix(str1 : str, str2 : str) -> int:  # count characters that form the prefix of both str1 and str2
     i = 0
     for c in str1:
         if len(str2) > i:
@@ -364,13 +370,13 @@ def commonPrefix(str1, str2):  # count characters that form the prefix of both s
             break
     return i
 
-def cubeGarbageCollect(cube):
+def cubeGarbageCollect(cube : Cube) -> None:
     # all of the cube's embeddings are gone already, so we can kill the cube and presentationGroup.
     cube.presentationGroup.__dict__.clear()
     cube.__dict__.clear()
 
 
-def embeddingGarbageCollect(embedding):
+def embeddingGarbageCollect(embedding : Embedding) -> None:
     try:
         report = embedding.report
     except AttributeError:

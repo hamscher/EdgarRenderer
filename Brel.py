@@ -6,14 +6,16 @@ Data and content created by government employees within the scope of their emplo
 are not subject to domestic copyright protection. 17 U.S.C. 105.
 """
 #from builtins import object
-from colorsys import _v
+from collections import defaultdict
+from builtins import list
+
 """
 Brel: simple minded Abstract XBRL instance + DTS Interface
 Initial Implementation via lxml + arelle
 """
 
 """ BREL COMMON """
-from typing import List #@UnusedImport
+from typing import List, Final #@UnusedImport
 
 class IModelObject:
         
@@ -23,11 +25,22 @@ class IModelObject:
         except Exception as e:
             if '_realObject' in self.__dict__:
                 _v = getattr(self._realObject,name)
-                setattr(self,name,_v)
+                if hasattr(self,'props'): # collect key misses
+                    self.props.add(name)
+                # setattr(self,name,_v) # this screws up when name is a defined method
                 return _v
             else:
                 raise e
-            
+
+    def __del__(self):
+        try:
+            del self.proxy[self._realObject]
+        except Exception:
+            pass
+    
+    def __str__(self):
+        return 'B!'+str(self._realObject)
+
 def isModelObject(o):
     return issubclass(type(o),IModelObject)
 """
@@ -75,6 +88,13 @@ def isModelFact(o):
     return issubclass(type(o),IModelFact)
 ###
 
+class IModelInlineFact(IModelFact): # n.b.
+    pass
+
+def isModelInlineFact(o):
+    return issubclass(type(o),IModelInlineFact)
+###
+
 class IModelContext(IModelObject):
     pass
 
@@ -115,6 +135,22 @@ class IModelRelationship(IModelObject):
 
 def isModelRelationship(o):
     return issubclass(type(o),IModelRelationship)
+
+###
+
+class IModelRelationshipSet(IModelObject):
+    pass
+
+def isModelRelationshipSet(o):
+    return issubclass(type(o),IModelRelationshipSet)
+
+###
+
+class IModelDimensionValue(IModelObject):
+    pass
+
+def isModelDimensionValue(o):
+    return issubclass(type(o),IModelDimensionValue)
 
 """ BREL IN LXML + ARELLE """
 
@@ -237,7 +273,9 @@ class ModelContext(IModelContext):
     context.scenario
     context.scenario.
     """
-    proxy = {} # class variable
+    proxy = {} # class variable containing universe of instances
+    props = set() # class variable containing all properties used
+    # set: {'id', 'endDatetime', 'startDatetime', 'iter', 'entityIdentifier', 'scenario', 'instantDatetime', 'segDimValues', 'isForeverPeriod', 'qnameDims'}
     @staticmethod
     def of(context): 
         assert isinstance(context,arelle.ModelInstanceObject.ModelContext)
@@ -248,12 +286,41 @@ class ModelContext(IModelContext):
         assert isinstance(context,arelle.ModelInstanceObject.ModelContext)
         self.proxy[context] = self
         self._realObject = context
-        self.document = self.modelDocument = ModelDocument.of(context.document)
-        self.modelXbrl = ModelXbrl.of(context.modelXbrl)
+        for a in ['document','modelXbrl','qnameDims']:
+            try:
+                _value = getattr(context,a)
+                setattr(self,a,getProxy(_value))
+            except AttributeError:
+                pass
         return
 
+    
+    @property
+    def id(self):
+        return self._realObject.id
+    
+    @property
+    def isForeverPeriod(self):
+        return self._realObject.isForeverPeriod
+    
+    @property
+    def instantDatetime(self):
+        return self._realObject.instantDatetime
+    
+    @property
+    def startDatetime(self):
+        return self._realObject.startDatetime
+    
+    @property
+    def endDatetime(self):
+        return self._realObject.endDatetime
+
+
+
 class ModelConcept(IModelConcept):
-    proxy = {} # class variable
+    proxy = {} # class variable containing universe of instances
+    props = set() # class variable containing all properties used
+    # set: {'isMonetary', 'typeQname', 'label', 'type', 'isShares', 'isTextBlock'}
     @staticmethod
     def of(concept): 
         assert isinstance(concept,arelle.ModelDtsObject.ModelConcept)
@@ -264,10 +331,29 @@ class ModelConcept(IModelConcept):
         assert isinstance(concept,arelle.ModelDtsObject.ModelConcept)
         self.proxy[concept] = self 
         self._realObject = concept
-        
+        for a in ['type']:
+            try:
+                _value = getattr(concept,a)
+                setattr(self,a,getProxy(_value))
+            except AttributeError:
+                pass
+
+    def label(self,**kwargs):
+        return self._realObject.label(**kwargs)
+    
+    @property
+    def typeQname(self):
+        return self._realObject.typeQname
+    
+    @property
+    def id(self):
+        return self._realObject.id
+
+
 
 class ModelLink (IModelLink):
-    proxy = {} # class variable
+    proxy = {} # class variable containing universe of instances
+    props = set() # class variable containing all properties used
     @staticmethod
     def of(link): 
         assert isinstance(link,arelle.ModelDtsObject.ModelLink)
@@ -280,12 +366,13 @@ class ModelLink (IModelLink):
     pass
 
 class ModelResource (IModelResource):
-    proxy = {} # class variable
+    proxy = {} # class variable containing universe of instances
+    props = set() # class variable containing all properties used
     @staticmethod
     def of(resource): 
         assert isinstance(resource,arelle.ModelDtsObject.ModelResource)
-        try: return ModelFact.proxy[resource]
-        except: return ModelFact(resource)
+        try: return ModelResource.proxy[resource]
+        except: return ModelResource(resource)
     def __init__(self,resource):
         assert isinstance(resource,arelle.ModelDtsObject.ModelResource)
         self.proxy[resource] = self
@@ -293,33 +380,111 @@ class ModelResource (IModelResource):
     pass
 
 class ModelRelationship (IModelRelationship):
-    proxy = {} # class variable
+    proxy = {} # class variable containing universe of instances
+    props = set() # class variable containing all properties used
     @staticmethod
     def of(relationship): 
         assert isinstance(relationship,arelle.ModelDtsObject.ModelRelationship)
-        try: return ModelFact.proxy[relationship]
-        except: return ModelFact(relationship)
+        try: return ModelRelationship.proxy[relationship]
+        except: return ModelRelationship(relationship)
     def __init__(self,relationship):
         assert isinstance(relationship,arelle.ModelDtsObject.ModelRelationship)
         self.proxy[relationship] = self
         self._realObject = relationship
-    pass
+        for a in ['toModelObject','fromModelObject']:
+            try:
+                _value = getattr(relationship,a)
+                setattr(self,a,getProxy(_value))
+            except AttributeError:
+                pass
+
+class ModelRelationshipSet (IModelRelationshipSet):
+    proxy = {} # class variable containing universe of instances
+    props = set() # class variable containing all properties used
+    @staticmethod
+    def of(relationshipSet): 
+        assert isinstance(relationshipSet,arelle.ModelRelationshipSet.ModelRelationshipSet)
+        try: return ModelRelationshipSet.proxy[relationshipSet]
+        except: return ModelRelationshipSet(relationshipSet)
+    def __init__(self,relationshipSet):
+        assert isinstance(relationshipSet,arelle.ModelRelationshipSet.ModelRelationshipSet)
+        self.proxy[relationshipSet] = self
+        self._realObject = relationshipSet
+        for a in ['rootConcepts','modelXbrl','modelRelationships','modelConceptRoots']:
+            try:
+                _value = getattr(relationshipSet,a)
+                setattr(self,a,getProxy(_value))
+            except AttributeError:
+                pass
+
+    def loadModelRelationshipsTo(self):
+        self._realObject.loadModelRelationshipsTo()
+    
+    def loadModelRelationshipsFrom(self):
+        self._realObject.loadModelRelationshipsFrom()
+    
+    @property
+    def modelRelationshipsTo(self):
+        try:
+            return self._modelRelationshipsTo
+        except AttributeError:
+            self._modelRelationshipsTo = getProxy(self._realObject.modelRelationshipsTo)
+            return self._modelRelationshipsTo
+    
+    @property
+    def modelRelationshipsFrom(self):
+        try: 
+            return self._modelRelationshipsFrom
+        except AttributeError:
+            self._modelRelationshipsFrom = getProxy(self._realObject.modelRelationshipsFrom)
+            return self._modelRelationshipsFrom
+    
+    @property
+    def linkRoleUris(self) -> List[str]:
+        return self._realObject.linkRoleUris
+
+    def toModelObject(self,o) -> List[ModelObject]:
+        dest = None
+        try:
+            dest = o._realObject
+            result = getProxy(self._realObject.toModelObject(dest))
+            return result
+        except AttributeError as e:
+            raise e
+    
+    def fromModelObject(self,o) -> List[ModelObject]:
+        src = None
+        try:
+            src = o._realObject
+            result = getProxy(self._realObject.fromModelObject(src))
+            return result
+        except AttributeError as e:
+            raise e
+
 
 class ModelType (IModelType):
-    proxy = {} # class variable
+    proxy = {} # class variable containing universe of instances
+    props = set() # class variable containing all properties used
     @staticmethod
     def of(modelType): 
         assert isinstance(modelType,arelle.ModelDtsObject.ModelType)
-        try: return ModelFact.proxy[modelType]
-        except: return ModelFact(modelType)
+        try: return ModelType.proxy[modelType]
+        except: return ModelType(modelType)
     def __init__(self,modelType):
         assert isinstance(modelType,arelle.ModelDtsObject.ModelType)
         self.proxy[modelType] = self
         self._realObject = modelType
-    pass
+        for a in []:
+            try:
+                _value = getattr(modelType,a)
+                setattr(self,a,getProxy(_value))
+            except AttributeError:
+                pass
 
 class ModelUnit (IModelUnit):
-    proxy = {} # class variable
+    proxy = {} # class variable containing universe of instances
+    props = set() # class variable containing all properties used
+    # set: {'id', 'isSingleMeasure', 'measures', 'value', 'sourceline'}
     @staticmethod
     def of(unit): 
         assert isinstance(unit,arelle.ModelInstanceObject.ModelUnit)
@@ -329,11 +494,21 @@ class ModelUnit (IModelUnit):
         assert isinstance(unit,arelle.ModelInstanceObject.ModelUnit)
         self.proxy[unit] = self
         self._realObject = unit
-    pass
+        for a in []:
+            try:
+                _value = getattr(unit,a)
+                setattr(self,a,getProxy(_value))
+            except AttributeError:
+                pass
+    @property
+    def id(self):
+        return self._realObject.id
+    
 
 
 class ModelDocument (IModelDocument):
-    proxy = {} # class variable
+    proxy = {} # class variable containing universe of instances
+    props = set() # class variable containing all properties used
     @staticmethod
     def of(document): 
         assert isinstance(document,arelle.ModelDocument.ModelDocument)
@@ -344,68 +519,163 @@ class ModelDocument (IModelDocument):
         assert isinstance(document,arelle.ModelDocument.ModelDocument)
         self.proxy[document] = self
         self._realObject = document
-        self.modelXbrl = ModelXbrl.of(document.modelXbrl)
-        self.idObjects = {}
-        for k,v in document.idObjects.items():        
-            self.idObjects[k] = v
-            try: 
-                fn = maker[type(v)]
-                self.idObjects[k] = fn(v)
-            except KeyError as e: #@UnusedVariable
+        for a in ['modelXbrl','idObjects']:
+            try:
+                _value = getattr(document,a)
+                setattr(self,a,getProxy(_value))
+            except AttributeError:
                 pass
     pass
 
-"""fact.
-fact.ancestorQnames
-fact.concept
-fact.concept.
-fact.context
-fact.contextID
-fact.decimals
-fact.decimals.
-fact.document
-fact.isNil
-fact.isNumeric
-fact.isTuple
-fact.iter -- an lxml function
-fact.iterancestors(   -- an lxml function
-fact.modelXbrl
-fact.prefixedName
-fact.qname
-fact.sValue
-fact.sourceline
-fact.unit
-fact.unitID
-fact.unitSymbol(
-fact.utrEntries.
-fact.value
-fact.value.
-fact.xValid
-fact.xValue
-fact.xmlLang
-fact.xsiNil"""
+class ModelDimensionValue (IModelDimensionValue):
+    proxy = {} # class variable containing universe of instances
+    props = set() # class variable containing all properties used
+    @staticmethod
+    def of(dimensionValue): 
+        assert isinstance(dimensionValue,arelle.ModelInstanceObject.ModelDimensionValue)
+        try: return ModelDimensionValue.proxy[dimensionValue]
+        except: return ModelDimensionValue(dimensionValue)
+        
+    def __init__(self,dimensionValue):
+        assert isinstance(dimensionValue,arelle.ModelInstanceObject.ModelDimensionValue)
+        self.proxy[dimensionValue] = self
+        self._realObject = dimensionValue
+        for a in ['dimension','member']:
+            try:
+                _value = getattr(dimensionValue,a)
+                setattr(self,a,getProxy(_value))
+            except AttributeError:
+                pass
+    pass
 
 class ModelFact(IModelFact):
-    proxy = {} # class variable
+    proxy = dict() # class variable
+    props = set() # class variable
+    # set: {'utrEntries', 'decimals', 'qname', 'document', 'xValid', 'isNil', 'unit', 'xmlLang', 'unitID', 'value', 'ancestorQnames', 'contextID', 'iter', 'iterancestors', 'isNumeric', 'xsiNil', 'modelXbrl'}
     @staticmethod
-    def of(fact): 
-        assert isinstance(fact,arelle.ModelInstanceObject.ModelFact)
-        try: return ModelFact.proxy[fact]
-        except: return ModelFact(fact)
-    
+    def of(fact):
+        if isinstance(fact,(arelle.ModelInstanceObject.ModelInlineFact)):
+            return ModelInlineFact.of(fact)
+        else:
+            assert isinstance(fact,arelle.ModelInstanceObject.ModelFact)
+            try:
+                return ModelFact.proxy[fact]
+            except KeyError:
+                return ModelFact(fact)
+
     def __init__(self,fact):
         assert isinstance(fact,arelle.ModelInstanceObject.ModelFact)
         self.proxy[fact] = self
         self._realObject = fact
-        self.concept = ModelConcept.of(fact.concept)
-        self.context = ModelContext.of(fact.context)
-        if getattr(fact,'unit',None) is not None:
-            self.unit = _u = ModelUnit.of(fact.unit)
-        # footnote
-        
+        for a in ['concept','context','unit']:
+            try:
+                _value = getattr(fact,a)
+                setattr(self,a,getProxy(_value))
+            except AttributeError:
+                pass
+
+    def anchorsInTextBlock(self):
+        result = []
+        for e in self.iter('*'): # for some reason iter('a') does not work.
+            if e.localName=='a' and not 'href' in e.attrib and ('id' in e.attrib  or 'name' in e.attrib):
+                atts = e.elementAttributesStr
+                line = e.sourceLine
+                result += [(atts,line)]
+        return result
+    
+    def unitSymbol(self): # method must exist on the fact and access the utr if needed.
+        """(str) -- utr symbol for this fact and unit"""
+        if self.unit is not None and self.concept is not None:
+            return self.unit._realObject.utrSymbol(self.concept._realObject.type)
+        return ""
+    
+    @property
+    def isNil(self):
+        return self._realObject.isNil
+    
+    @property
+    def isNumeric(self):
+        return self._realObject.isNumeric
+    
+    @property
+    def decimals(self):
+        return self._realObject.decimals
+    
+    @property
+    def xmlLang(self):
+        return self._realObject.xmlLang
+    
+    @property
+    def isTuple(self):
+        return self._realObject.isTuple
+    
+    @property
+    def contextId(self):
+        return self._realObject.contextId
+    
+    @property
+    def sourceline(self):
+        return self._realObject.sourceline
+    
+    @property
+    def qname(self):
+        return self._realObject.qname
+    
+    @property
+    def unitId(self):
+        return self._realObject.unitId
+    
+
+class ModelInlineFact(IModelInlineFact):
+    proxy = dict() # class variable
+    props = set() # class variable
+    @staticmethod
+    def of(fact): 
+        assert isinstance(fact,arelle.ModelInstanceObject.ModelInlineFact)
+        try: return ModelInlineFact.proxy[fact]
+        except: return ModelInlineFact(fact)
+    
+    def __init__(self,fact):
+        assert isinstance(fact,arelle.ModelInstanceObject.ModelInlineFact)
+        self.proxy[fact] = self
+        self._realObject = fact
+        self._realObject = fact
+        for a in ['concept','context','unit']:
+            try:
+                _value = getattr(fact,a)
+                setattr(self,a,getProxy(_value))
+            except AttributeError:
+                pass
 
 class ModelXbrl(IModelXbrl): 
     proxy = {} # class variable
+    props = set() # class variable
+    
+    """arelleUnitTests
+    baseSets
+    debug
+    errors
+    factsByQname
+    fileSource
+    labelroles
+    langs
+    matchSubstitutionGroup
+    modelDocument
+    modelManager
+    modelObjects
+    nameConcepts
+    namespaceDocs
+    profileActivity
+    qnameConcepts
+    relationshipSet
+    relationshipSets
+    roleTypes
+    schemaDocsToValidate
+    skipDTS
+    units
+    urlDocs
+    urlUnloadableDocs"""
+
     @staticmethod
     def of(modelXbrl): 
         assert isinstance(modelXbrl,arelle.ModelXbrl.ModelXbrl)
@@ -415,17 +685,27 @@ class ModelXbrl(IModelXbrl):
     def __init__(self,modelXbrl):
         self.proxy[modelXbrl] = self
         self._realObject = modelXbrl
-        # Contexts
-        self.contexts = {}
-        for k,v in modelXbrl.contexts.items():
-            self.contexts[k] = ModelContext.of(v)
-        # Facts
-        self.facts = []
-        for v in modelXbrl.facts:
-            _v = ModelFact.of(v)
-            self.facts.append(_v)
+        for a in ['contexts','facts','factsByQname','qnameConcepts']:
+            try:
+                _value = getattr(modelXbrl,a)
+                setattr(self,a,getProxy(_value))
+            except AttributeError:
+                pass
 
+                        
+    def relationshipSet(self, arcrole, linkrole=None, linkqname=None, arcqname=None, includeProhibits=False):
+        # TODO: rewrite as iterator with a predicate filter instead of curious tokens like arcrole='XBRL-footnote'
+        return ModelRelationshipSet.of(self._realObject.relationshipSet(
+            arcrole
+            ,linkrole=linkrole
+            ,linkqname=linkqname
+            ,arcqname=arcqname
+            ,includeProhibits=includeProhibits))
+
+
+# Constant
 maker = {arelle.ModelInstanceObject.ModelFact : ModelFact.of
+           ,arelle.ModelInstanceObject.ModelInlineFact : ModelInlineFact.of
            ,arelle.ModelInstanceObject.ModelContext : ModelContext.of
            ,arelle.ModelInstanceObject.ModelUnit : ModelUnit.of 
            ,arelle.ModelDtsObject.ModelConcept : ModelConcept.of
@@ -434,7 +714,32 @@ maker = {arelle.ModelInstanceObject.ModelFact : ModelFact.of
            ,arelle.ModelDtsObject.ModelRelationship : ModelRelationship.of
            ,arelle.ModelDtsObject.ModelResource : ModelResource.of
            ,arelle.ModelXbrl.ModelXbrl : ModelXbrl.of
-            }
+           ,arelle.ModelDocument.ModelDocument : ModelDocument.of
+           ,arelle.ModelInstanceObject.ModelDimensionValue : ModelDimensionValue.of
+           ,str : (lambda x: x)
+           ,int : (lambda x: x)
+           ,float : (lambda x: x)
+           ,arelle.ModelValue.QName : (lambda x : x)
+           }
+
+def getProxy(obj):
+    result = obj
+    try:
+        result = maker[type(obj)](obj)
+    except KeyError:
+        if type(obj) in [list]:
+            result = [getProxy(o) for o in obj]
+        elif type(obj) in [defaultdict]:
+            result = defaultdict(obj.default_factory,{getProxy(k) : getProxy(v) for k,v in obj.items()})
+        elif type(obj) in [dict]:
+            result = {getProxy(k) : getProxy(v) for k,v in obj.items()}
+        elif type(obj) in [set]:
+            result = {getProxy(o) for o in obj}
+        elif obj == None:
+            pass
+        else: 
+            raise "What is this? {} {}".format(type(obj),obj)
+    return result
 
 def isDimensionItem(o):
     return isinstance(o,arelle.ModelDtsObject.ModelConcept) and o.isDimensionItem
