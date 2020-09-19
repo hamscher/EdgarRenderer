@@ -5,10 +5,11 @@ Edgar(tm) Renderer was created by staff of the U.S. Securities and Exchange Comm
 Data and content created by government employees within the scope of their employment 
 are not subject to domestic copyright protection. 17 U.S.C. 105.
 """
-#from builtins import object
+# from builtins import object
 from collections import defaultdict
 from builtins import list
-
+from datetime import datetime
+from re import sub
 
 """
 Brel: simple minded Abstract XBRL instance + DTS Interface
@@ -16,18 +17,19 @@ Initial Implementation via lxml + arelle
 """
 
 """ BREL COMMON """
-from typing import List
+from typing import Dict, List, Tuple, Generator, Any
+
 
 class IModelObject:
-        
-    def __getattr__(self,name):
+
+    def __getattr__(self, name):
         try:
             return self.__dict__[name]
         except Exception as e:
-            if '_realObject' in self.__dict__:
-                _v = getattr(self._realObject,name)
-                if hasattr(self,'props'): # collect key misses
-                    self.props.add(name)
+            if 'realObject' in self.__dict__:
+                _v = getattr(self.realObject, name)  # later we'll rename this _realObject
+                if hasattr(self, '_props'):  # collect key misses
+                    self._props.add(name)
                 # setattr(self,name,_v) # this screws up when name is a defined method
                 return _v
             else:
@@ -35,15 +37,16 @@ class IModelObject:
 
     def __del__(self):
         try:
-            del self.proxy[self._realObject]
+            del self._proxy[self.realObject]
         except Exception:
             pass
-    
+
     def __str__(self):
-        return 'B!'+str(self._realObject)
+        return 'B!' + str(self.realObject)
+
 
 def isModelObject(o):
-    return issubclass(type(o),IModelObject)
+    return issubclass(type(o), IModelObject)
 """
 Xbrl
 Document
@@ -61,97 +64,124 @@ Relationship
 These should have abstract methods (signatures) declared.
 """
 
+
 class IModelXbrl(IModelObject):
     pass
 
+
 def isModelXbrl(o):
-    return issubclass(type(o),IModelXbrl)
-###
+    return issubclass(type(o), IModelXbrl)
+# ##
+
 
 class IModelDocument(IModelObject):
     pass
 
+
 def isModelDocument(o):
-    return issubclass(type(o),IModelDocument)
-###
+    return issubclass(type(o), IModelDocument)
+# ##
+
 
 class IModelUnit(IModelObject):
     pass
 
+
 def isModelUnit(o):
-    return issubclass(type(o),IModelUnit)
-###
+    return issubclass(type(o), IModelUnit)
+# ##
+
 
 class IModelFact(IModelObject):
     pass
 
-def isModelFact(o):
-    return issubclass(type(o),IModelFact)
-###
 
-class IModelInlineFact(IModelFact): # n.b.
+def isModelFact(o):
+    return issubclass(type(o), IModelFact)
+# ##
+
+
+class IModelInlineFact(IModelFact):  # n.b.
     pass
 
+
 def isModelInlineFact(o):
-    return issubclass(type(o),IModelInlineFact)
-###
+    return issubclass(type(o), IModelInlineFact)
+# ##
+
 
 class IModelContext(IModelObject):
     pass
 
+
 def isModelContext(o):
-    return issubclass(type(o),IModelContext)
-###
+    return issubclass(type(o), IModelContext)
+# ##
+
 
 class IModelConcept(IModelObject):
     pass
 
+
 def isModelConcept(o):
-    return issubclass(type(o),IModelConcept)
-###
+    return issubclass(type(o), IModelConcept)
+# ##
+
 
 class IModelType(IModelObject):
     pass
 
+
 def isModelType(o):
-    return issubclass(type(o),IModelType)
-###
+    return issubclass(type(o), IModelType)
+# ##
+
 
 class IModelLink(IModelObject):
     pass
 
+
 def isModelLink(o):
-    return issubclass(type(o),IModelLink)
-###
+    return issubclass(type(o), IModelLink)
+# ##
+
 
 class IModelResource(IModelObject):
     pass
 
+
 def isModelResource(o):
-    return issubclass(type(o),IModelResource)
-###
+    return issubclass(type(o), IModelResource)
+# ##
+
 
 class IModelRelationship(IModelObject):
     pass
 
-def isModelRelationship(o):
-    return issubclass(type(o),IModelRelationship)
 
-###
+def isModelRelationship(o):
+    return issubclass(type(o), IModelRelationship)
+
+# ##
+
 
 class IModelRelationshipSet(IModelObject):
     pass
 
-def isModelRelationshipSet(o):
-    return issubclass(type(o),IModelRelationshipSet)
 
-###
+def isModelRelationshipSet(o):
+    return issubclass(type(o), IModelRelationshipSet)
+
+# ##
+
 
 class IModelDimensionValue(IModelObject):
     pass
 
+
 def isModelDimensionValue(o):
-    return issubclass(type(o),IModelDimensionValue)
+    return issubclass(type(o), IModelDimensionValue)
+
 
 """ BREL IN LXML + ARELLE """
 
@@ -160,25 +190,33 @@ replacements for lxml.etree
 """
 import lxml
 
-iterparse = lxml.etree.iterparse # function
-parse = lxml.etree.parse # function
-treeToString = lxml.etree.tostring # function
+iterparse = lxml.etree.iterparse  # function
+parse = lxml.etree.parse  # function
+treeToString = lxml.etree.tostring  # function
 
-Comment = lxml.etree.Comment # factory
-Element = lxml.etree.Element # factory
-LxmlError = lxml.etree.LxmlError # exception class
-HTML = lxml.etree.HTML # function
-QName = lxml.etree.QName # wrapper function
-SubElement = lxml.etree.SubElement # factory
-XSLT = lxml.etree.XSLT # function
-XSLTError = lxml.etree.XSLTError # exception class
+Comment = lxml.etree.Comment  # factory
+Element = lxml.etree.Element  # factory
+LxmlError = lxml.etree.LxmlError  # exception class
+HTML = lxml.etree.HTML  # function
+QName = lxml.etree.QName  # wrapper function
+SubElement = lxml.etree.SubElement  # factory
+XSLT = lxml.etree.XSLT  # function
+XSLTError = lxml.etree.XSLTError  # exception class
 
-ElementDepthFirstIterator = lxml.etree.ElementDepthFirstIterator # Element method
+ElementDepthFirstIterator = lxml.etree.ElementDepthFirstIterator  # Element method
 
 """
 replacements for arelle
 """
 import arelle
+
+UNVALIDATED = arelle.XmlValidate.UNVALIDATED
+UNKNOWN = arelle.XmlValidate.UNKNOWN
+INVALID = arelle.XmlValidate.INVALID
+NONE = arelle.XmlValidate.NONE
+VALID = arelle.XmlValidate.VALID
+VALID_ID = arelle.XmlValidate.VALID_ID
+VALID_NO_CONTENT = arelle.XmlValidate.VALID_NO_CONTENT 
 
 """
 replacements for arelle.XbrlConst
@@ -205,7 +243,7 @@ defaultLinkRole = arelle.XbrlConst.defaultLinkRole
 documentationLabel = arelle.XbrlConst.documentationLabel
 
 # Clark notations
-cnXbrliIdentifier = "{"+xbrli+"}xbrli:identifier"
+cnXbrliIdentifier = "{" + xbrli + "}xbrli:identifier"
 
 #  QNames
 qnIXbrl11Hidden = arelle.XbrlConst.qnIXbrl11Hidden
@@ -217,9 +255,9 @@ qnLinkPresentationLink = arelle.XbrlConst.qnLinkPresentationLink
 replacements for arelle.ModelDocument
 """
 
-load = arelle.ModelDocument.load # function
-LoadingException = arelle.ModelDocument.LoadingException # Exception
-openFileSource = arelle.FileSource.openFileSource # function
+LoadingException = arelle.ModelDocument.LoadingException  # Exception
+openFileSource = arelle.FileSource.openFileSource  # function
+
 
 class FileSource (arelle.FileSource.FileSource):
     pass
@@ -249,702 +287,888 @@ class Type:
 
     TESTCASETYPES = (TESTCASESINDEX, TESTCASE, REGISTRY, REGISTRYTESTCASE, XPATHTESTSUITE)
 
-
 """
 replacements for arelle.ModelObject
 """
 
+
 class ModelObject (IModelObject):
-    pass
+    """    
+    """
+    _proxy = {}  # class variable containing universe of instances
+    _props = set()  # class variable containing all properties used
+
+    @staticmethod
+    def of(obj): 
+        assert isinstance(obj, arelle.ModelObject.ModelObject)
+        try: return ModelObject._proxy[obj]
+        except: return ModelObject(obj)
+
+    def __init__(self, obj):
+        assert isinstance(obj, arelle.ModelObject.ModelObject)
+        self._proxy[obj] = self
+        self.realObject = obj
+        for a in ['modelXbrl']:
+            try:
+                _value = getattr(obj, a)
+                setattr(self, a, getProxy(_value))
+            except AttributeError:
+                pass
+
+    def iter(self, *args, **kwargs) -> Generator[Any, None, None]:
+        for _value in self.realObject.iter(*args, **kwargs):
+            result = getProxy(_value)
+            yield result
+
+    def iterancestors(self, *args, **kwargs) -> Generator[Any, None, None]:
+        for _value in self.realObject.iterancestors(*args, **kwargs):
+            result = getProxy(_value)
+            yield result
+
+    def iterchildren(self, *args, **kwargs) -> Generator[Any, None, None]:
+        for _value in self.realObject.iterchildren(*args, **kwargs):
+            result = getProxy(_value)
+            yield result
+
+    @property
+    def qname(self) -> QName:
+        return self.realObject.qname
+
+    @property
+    def text(self) -> str:
+        return self.realObject.text
+
+    @property
+    def tag(self) -> str:
+        return self.realObject.tag
+    
+    @property
+    def xValue(self) -> str:
+        return self.realObject.xValue
+    
+    @property
+    def localName(self) -> str:
+        return self.realObject.localName
+
+    @property
+    def isValid(self) -> bool:
+        try:
+            return self._isValid
+        except AttributeError:
+            result = (VALID <= self.realObject.xValid)
+            self._isValid = result
+            return result
+
+    @property
+    def isValidOrValidID(self) -> bool:
+        try:
+            return self._isValidOrValidID
+        except AttributeError:
+            result = (VALID <= self.realObject.xValid < VALID_NO_CONTENT)
+            self._isValidOrValidID = result
+            return result
 
 """
 replacements for arelle.ModelDts.*
 """
 
-class ModelContext(IModelContext):
+
+class ModelContext(IModelContext, ModelObject):
     """
     set: {'entityIdentifier', 'segDimValues', 'iter', 'scenario'}
     """
-    proxy = {} # class variable containing universe of instances
-    props = set() # class variable containing all properties used
-    # set: {'id', 'endDatetime', 'startDatetime', 'iter', 'entityIdentifier', 'scenario', 'instantDatetime', 'segDimValues', 'isForeverPeriod', 'qnameDims'}
+    _proxy = {}  # class variable containing universe of instances
+    _props = set()  # class variable containing all properties used
+
+    # set: {'iter','scenario', 'segDimValues'}
     @staticmethod
     def of(context): 
-        assert isinstance(context,arelle.ModelInstanceObject.ModelContext)
-        try: return ModelContext.proxy[context]
+        assert isinstance(context, arelle.ModelInstanceObject.ModelContext)
+        try: return ModelContext._proxy[context]
         except: return ModelContext(context)
-        
-    def __init__(self,context):
-        assert isinstance(context,arelle.ModelInstanceObject.ModelContext)
-        self.proxy[context] = self
-        self._realObject = context
-        for a in ['document','modelXbrl','qnameDims']:
+
+    def __init__(self, context):
+        assert isinstance(context, arelle.ModelInstanceObject.ModelContext)
+        self._proxy[context] = self
+        self.realObject = context
+        for a in ['document', 'modelXbrl', 'qnameDims']:
             try:
-                _value = getattr(context,a)
-                setattr(self,a,getProxy(_value))
+                _value = getattr(context, a)
+                setattr(self, a, getProxy(_value))
             except AttributeError:
                 pass
         return
 
-    
     @property
-    def id(self):
-        return self._realObject.id
-    
+    def dimensionValues(self) -> Generator[IModelDimensionValue, None, None]:
+        qnameDims = self.realObject.qnameDims
+        for d in qnameDims.values():
+            yield getProxy(d)
+
     @property
-    def isForeverPeriod(self):
-        return self._realObject.isForeverPeriod
-    
+    def segDimValues(self) -> Dict[IModelConcept, IModelDimensionValue]:
+        try: return self._segDimValues
+        except AttributeError:
+            result = getProxy(self.realObject.segDimValues)
+            self._segDimValues = result
+            return result
+
     @property
-    def instantDatetime(self):
-        return self._realObject.instantDatetime
-    
+    def entityIdentifier(self) -> (str, str):
+        return self.realObject.entityIdentifier
+
     @property
-    def startDatetime(self):
-        return self._realObject.startDatetime
-    
+    def id(self) -> str:
+        return self.realObject.id
+
     @property
-    def endDatetime(self):
-        return self._realObject.endDatetime
+    def isForeverPeriod(self) -> bool:
+        return self.realObject.isForeverPeriod
+
+    @property
+    def isStartEndPeriod(self) -> bool:
+        return self.realObject.isStartEndPeriod
+
+    @property
+    def isInstancePeriod(self) -> bool:
+        return self.realObject.isStartEndPeriod
+
+    @property
+    def instantDatetime(self) -> datetime:
+        return self.realObject.instantDatetime
+
+    @property
+    def startDatetime(self) -> datetime:
+        return self.realObject.startDatetime
+
+    @property
+    def endDatetime(self) -> datetime:
+        return self.realObject.endDatetime
+
+    @property
+    def scenario(self) -> ModelObject:
+        return getProxy(self.realObject.scenario)
 
 
-
-class ModelConcept(IModelConcept):
-    proxy = {} # class variable containing universe of instances
-    props = set() # class variable containing all properties used
+class ModelConcept(IModelConcept, ModelObject):
+    _proxy = {}  # class variable containing universe of instances
+    _props = set()  # class variable containing all properties used
     """
-    set: {'isTextBlock', 'isAbstract', 'baseXsdType', 'isShares', 'balance', 'isTypedDimension', 'periodType', 'attrib', 'name', 'substitutionGroup', 'isDimensionItem', 'isItem', 'isMonetary', 'modelXbrl', 'qname'}
     """
+
     @staticmethod
     def of(concept): 
-        assert isinstance(concept,arelle.ModelDtsObject.ModelConcept)
-        try: return ModelConcept.proxy[concept]
+        assert isinstance(concept, arelle.ModelDtsObject.ModelConcept)
+        try: return ModelConcept._proxy[concept]
         except: return ModelConcept(concept)
 
-    def __init__(self,concept):
-        assert isinstance(concept,arelle.ModelDtsObject.ModelConcept)
-        self.proxy[concept] = self 
-        self._realObject = concept
+    def __init__(self, concept):
+        assert isinstance(concept, arelle.ModelDtsObject.ModelConcept)
+        self._proxy[concept] = self 
+        self.realObject = concept
         for a in ['type']:
             try:
-                _value = getattr(concept,a)
-                setattr(self,a,getProxy(_value))
+                _value = getattr(concept, a)
+                setattr(self, a, getProxy(_value))
             except AttributeError:
                 pass
 
-    def label(self,**kwargs):
-        return self._realObject.label(**kwargs)
-    
+    def label(self, **kwargs) -> str:
+        return self.realObject.label(**kwargs)
+
     @property
-    def typeQname(self):
-        return self._realObject.typeQname
-    
+    def name(self) -> str:
+        return self.realObject.name
+
     @property
-    def id(self):
-        return self._realObject.id
+    def substitutionGroup(self) -> IModelConcept:
+        result = self.realObject.substitutionGroup
+        return result
+
+    @property
+    def typeQname(self) -> QName:
+        return self.realObject.typeQname
+
+    @property
+    def id(self) -> str:
+        return self.realObject.id
+
+    @property
+    def balance(self) -> str:
+        result = self.realObject.balance
+        return result
+
+    @property
+    def isTypedDimension(self) -> bool:
+        result = self.realObject.isTypedDimension
+        return result
+
+    @property
+    def isDimensionItem(self) -> bool:
+        result = self.realObject.isDimensionItem
+        return result
+
+    @property
+    def isTextBlock(self) -> bool:
+        result = self.realObject.isTextBlock
+        return result
+
+    @property
+    def isItem(self) -> bool:
+        result = self.realObject.isItem
+        return result
+
+    @property
+    def isAbstract(self) -> bool:
+        result = self.realObject.isAbstract
+        return result
+
+    @property
+    def isMonetary(self) -> bool:
+        result = self.realObject.isMonetary
+        return result
+
+    @property
+    def isShares(self) -> bool:
+        result = self.realObject.isShares
+        return result
+
+    @property
+    def modelXbrl(self) -> IModelXbrl:
+        result = self.realObject.modelXbrl
+        return result
+
+    @property
+    def baseXsdType(self) -> str:  # local name of base XML Schema type
+        result = self.realObject.baseXsdType
+        return result
+
+    @property
+    def periodType(self) -> str:  # instant or duration
+        result = self.realObject.periodType
+        return result
+
+# ##
 
 
+class ModelLink (IModelLink, ModelObject):
+    _proxy = {}  # class variable containing universe of instances
+    _props = set()  # class variable containing all properties used
 
-class ModelLink (IModelLink):
-    proxy = {} # class variable containing universe of instances
-    props = set() # class variable containing all properties used
     @staticmethod
     def of(link): 
-        assert isinstance(link,arelle.ModelDtsObject.ModelLink)
-        try: return ModelLink.proxy[link]
+        assert isinstance(link, arelle.ModelDtsObject.ModelLink)
+        try: return ModelLink._proxy[link]
         except: return ModelLink(link)
-    def __init__(self,link):
-        assert isinstance(link,arelle.ModelDtsObject.ModelLink)
-        self.proxy[link] = self
-        self._realObject = link
-    pass
 
-class ModelResource (IModelResource):
-    proxy = {} # class variable containing universe of instances
-    props = set() # class variable containing all properties used
+    def __init__(self, link):
+        assert isinstance(link, arelle.ModelDtsObject.ModelLink)
+        self._proxy[link] = self
+        self.realObject = link
+
+###
+
+
+class ModelResource (IModelResource, ModelObject):
+    _proxy = {}  # class variable containing universe of instances
+    _props = set()  # class variable containing all properties used
     """
     set: {'text', 'iterchildren', 'xmlLang', 'role'}
     """
+
     @staticmethod
     def of(resource): 
-        assert isinstance(resource,arelle.ModelDtsObject.ModelResource)
-        try: return ModelResource.proxy[resource]
+        assert isinstance(resource, arelle.ModelDtsObject.ModelResource)
+        try: return ModelResource._proxy[resource]
         except: return ModelResource(resource)
-    def __init__(self,resource):
-        assert isinstance(resource,arelle.ModelDtsObject.ModelResource)
-        self.proxy[resource] = self
-        self._realObject = resource
-    pass
 
-class ModelRelationship (IModelRelationship):
-    proxy = {} # class variable containing universe of instances
-    props = set() # class variable containing all properties used
+    def __init__(self, resource):
+        assert isinstance(resource, arelle.ModelDtsObject.ModelResource)
+        self._proxy[resource] = self
+        self.realObject = resource
+
+    @property
+    def xmlLang(self) -> str:
+        result = self.realObject.xmlLang
+        return result
+
+    @property
+    def role(self) -> str:
+        result = self.realObject.role
+        return result
+
+    @property
+    def text(self) -> str:
+        result = self.realObject.text
+        return result
+
+
+class ModelRelationship (IModelRelationship, ModelObject):
+    _proxy = {}  # class variable containing universe of instances
+    _props = set()  # class variable containing all properties used
     """
-    set: {'order', 'preferredLabel', 'linkrole', 'weight'}
+
     """
+
     @staticmethod
     def of(relationship): 
-        assert isinstance(relationship,arelle.ModelDtsObject.ModelRelationship)
-        try: return ModelRelationship.proxy[relationship]
+        assert isinstance(relationship, arelle.ModelDtsObject.ModelRelationship)
+        try: return ModelRelationship._proxy[relationship]
         except: return ModelRelationship(relationship)
-    def __init__(self,relationship):
-        assert isinstance(relationship,arelle.ModelDtsObject.ModelRelationship)
-        self.proxy[relationship] = self
-        self._realObject = relationship
-        for a in ['toModelObject','fromModelObject']:
+
+    def __init__(self, relationship):
+        assert isinstance(relationship, arelle.ModelDtsObject.ModelRelationship)
+        self._proxy[relationship] = self
+        self.realObject = relationship
+        for a in ['toModelObject', 'fromModelObject']:
             try:
-                _value = getattr(relationship,a)
-                setattr(self,a,getProxy(_value))
+                _value = getattr(relationship, a)
+                setattr(self, a, getProxy(_value))
             except AttributeError:
                 pass
 
-class ModelRelationshipSet (IModelRelationshipSet):
-    proxy = {} # class variable containing universe of instances
-    props = set() # class variable containing all properties used
+    @property
+    def linkrole(self) -> str:
+        result = self.realObject.linkrole
+        return result
+
+    @property
+    def order(self) -> float:
+        result = self.realObject.linkrole
+        return result
+
+    @property
+    def weight(self) -> float:
+        result = self.realObject.weight
+        return result
+
+    @property
+    def preferredLabel(self) -> str:  # The role of the preferred role, not the preferred label.
+        result = self.realObject.preferredLabel
+        return result
+
+###
+
+class ModelRelationshipSet (IModelRelationshipSet, ModelObject):
+    _proxy = {}  # class variable containing universe of instances
+    _props = set()  # class variable containing all properties used
     """
     set: set()
     """
+
     @staticmethod
     def of(relationshipSet): 
-        assert isinstance(relationshipSet,arelle.ModelRelationshipSet.ModelRelationshipSet)
-        try: return ModelRelationshipSet.proxy[relationshipSet]
+        assert isinstance(relationshipSet, arelle.ModelRelationshipSet.ModelRelationshipSet)
+        try: return ModelRelationshipSet._proxy[relationshipSet]
         except: return ModelRelationshipSet(relationshipSet)
-    def __init__(self,relationshipSet):
-        assert isinstance(relationshipSet,arelle.ModelRelationshipSet.ModelRelationshipSet)
-        self.proxy[relationshipSet] = self
-        self._realObject = relationshipSet
-        for a in ['rootConcepts','modelXbrl','modelRelationships','modelConceptRoots']:
+        
+    def __init__(self, relationshipSet):
+        assert isinstance(relationshipSet, arelle.ModelRelationshipSet.ModelRelationshipSet)
+        self._proxy[relationshipSet] = self
+        self.realObject = relationshipSet
+        for a in ['rootConcepts', 'modelXbrl', 'modelRelationships', 'modelConceptRoots']:
             try:
-                _value = getattr(relationshipSet,a)
-                setattr(self,a,getProxy(_value))
+                _value = getattr(relationshipSet, a)
+                setattr(self, a, getProxy(_value))
             except AttributeError:
                 pass
 
     def loadModelRelationshipsTo(self):
-        self._realObject.loadModelRelationshipsTo()
-    
+        self.realObject.loadModelRelationshipsTo()
+
     def loadModelRelationshipsFrom(self):
-        self._realObject.loadModelRelationshipsFrom()
-    
+        self.realObject.loadModelRelationshipsFrom()
+
     @property
     def modelRelationshipsTo(self):
         try:
             return self._modelRelationshipsTo
         except AttributeError:
-            self._modelRelationshipsTo = getProxy(self._realObject.modelRelationshipsTo)
+            self._modelRelationshipsTo = getProxy(self.realObject.modelRelationshipsTo)
             return self._modelRelationshipsTo
-    
+
     @property
     def modelRelationshipsFrom(self):
         try: 
             return self._modelRelationshipsFrom
         except AttributeError:
-            self._modelRelationshipsFrom = getProxy(self._realObject.modelRelationshipsFrom)
+            self._modelRelationshipsFrom = getProxy(self.realObject.modelRelationshipsFrom)
             return self._modelRelationshipsFrom
-    
+
     @property
     def linkRoleUris(self) -> List[str]:
-        return self._realObject.linkRoleUris
+        return self.realObject.linkRoleUris
 
-    def toModelObject(self,o) -> List[ModelObject]:
+    def toModelObject(self, o) -> List[ModelObject]:
         dest = None
         try:
-            dest = o._realObject
-            result = getProxy(self._realObject.toModelObject(dest))
+            dest = o.realObject
+            result = getProxy(self.realObject.toModelObject(dest))
             return result
         except AttributeError as e:
             raise e
-    
-    def fromModelObject(self,o) -> List[ModelObject]:
+
+    def fromModelObject(self, o) -> List[ModelObject]:
         src = None
         try:
-            src = o._realObject
-            result = getProxy(self._realObject.fromModelObject(src))
+            src = o.realObject
+            result = getProxy(self.realObject.fromModelObject(src))
             return result
         except AttributeError as e:
             raise e
 
+###
 
-class ModelType (IModelType):
-    proxy = {} # class variable containing universe of instances
-    props = set() # class variable containing all properties used
+class ModelType (IModelType, ModelObject):
+    _proxy = {}  # class variable containing universe of instances
+    _props = set()  # class variable containing all properties used
     """set: {'name'}"""
+
     @staticmethod
     def of(modelType): 
-        assert isinstance(modelType,arelle.ModelDtsObject.ModelType)
-        try: return ModelType.proxy[modelType]
+        assert isinstance(modelType, arelle.ModelDtsObject.ModelType)
+        try: return ModelType._proxy[modelType]
         except: return ModelType(modelType)
-    def __init__(self,modelType):
-        assert isinstance(modelType,arelle.ModelDtsObject.ModelType)
-        self.proxy[modelType] = self
-        self._realObject = modelType
+
+    def __init__(self, modelType):
+        assert isinstance(modelType, arelle.ModelDtsObject.ModelType)
+        self._proxy[modelType] = self
+        self.realObject = modelType
         for a in []:
             try:
-                _value = getattr(modelType,a)
-                setattr(self,a,getProxy(_value))
+                _value = getattr(modelType, a)
+                setattr(self, a, getProxy(_value))
             except AttributeError:
                 pass
 
-class ModelUnit (IModelUnit):
-    proxy = {} # class variable containing universe of instances
-    props = set() # class variable containing all properties used
+    @property
+    def name(self) -> str:
+        result = self.realObject.name
+        return result
+
+###
+
+class ModelUnit (IModelUnit, ModelObject):
+    _proxy = {}  # class variable containing universe of instances
+    _props = set()  # class variable containing all properties used
     """
     set: {'value', 'sourceline', 'measures', 'isSingleMeasure'}
     """
+
     @staticmethod
     def of(unit): 
-        assert isinstance(unit,arelle.ModelInstanceObject.ModelUnit)
-        try: return ModelUnit.proxy[unit]
+        assert isinstance(unit, arelle.ModelInstanceObject.ModelUnit)
+        try: return ModelUnit._proxy[unit]
         except: return ModelUnit(unit)
-    def __init__(self,unit):
-        assert isinstance(unit,arelle.ModelInstanceObject.ModelUnit)
-        self.proxy[unit] = self
-        self._realObject = unit
+
+    def __init__(self, unit):
+        assert isinstance(unit, arelle.ModelInstanceObject.ModelUnit)
+        self._proxy[unit] = self
+        self.realObject = unit
         for a in []:
             try:
-                _value = getattr(unit,a)
-                setattr(self,a,getProxy(_value))
+                _value = getattr(unit, a)
+                setattr(self, a, getProxy(_value))
             except AttributeError:
                 pass
+
     @property
-    def id(self):
-        return self._realObject.id
-    
+    def id(self) -> str:
+        return self.realObject.id
 
+    @property
+    def sourceline(self) -> int:
+        result = self.realObject.sourceline
+        return result
 
-class ModelDocument (IModelDocument):
-    proxy = {} # class variable containing universe of instances
-    props = set() # class variable containing all properties used
+    @property
+    def isSingleMeasure(self) -> bool:
+        return self.realObject.isSingleMeasure
+
+    @property
+    def measures(self) -> (List[QName], List[QName]):
+        return self.realObject.measures
+
+    @property
+    def value(self) -> str:
+        result = self.realObject.value
+        return result
+
+###
+
+class ModelDocument (IModelDocument, ModelObject):
+    _proxy = {}  # class variable containing universe of instances
+    _props = set()  # class variable containing all properties used
     """
     """
+
     @staticmethod
     def of(document): 
-        assert isinstance(document,arelle.ModelDocument.ModelDocument)
-        try: return ModelDocument.proxy[document]
+        assert isinstance(document, arelle.ModelDocument.ModelDocument)
+        try: return ModelDocument._proxy[document]
         except: return ModelDocument(document)
-        
-    def __init__(self,document):
-        assert isinstance(document,arelle.ModelDocument.ModelDocument)
-        self.proxy[document] = self
-        self._realObject = document
-        for a in ['modelXbrl','idObjects']:
+
+    def __init__(self, document):
+        assert isinstance(document, arelle.ModelDocument.ModelDocument)
+        self._proxy[document] = self
+        self.realObject = document
+        for a in ['modelXbrl', 'idObjects']:
             try:
-                _value = getattr(document,a)
-                setattr(self,a,getProxy(_value))
+                _value = getattr(document, a)
+                setattr(self, a, getProxy(_value))
             except AttributeError:
                 pass
-    pass
 
-class ModelDimensionValue (IModelDimensionValue):
-    proxy = {} # class variable containing universe of instances
-    props = set() # class variable containing all properties used
+###
+
+class ModelDimensionValue (IModelDimensionValue, ModelObject):
+    _proxy = {}  # class variable containing universe of instances
+    _props = set()  # class variable containing all properties used
     """
-    set: {'memberQname', 'isExplicit', 'dimensionQname', 'typedMember', 'isTyped'}
+    set: {'memberQname'}
     """
+
     @staticmethod
     def of(dimensionValue): 
-        assert isinstance(dimensionValue,arelle.ModelInstanceObject.ModelDimensionValue)
-        try: return ModelDimensionValue.proxy[dimensionValue]
+        assert isinstance(dimensionValue, arelle.ModelInstanceObject.ModelDimensionValue)
+        try: return ModelDimensionValue._proxy[dimensionValue]
         except: return ModelDimensionValue(dimensionValue)
-        
-    def __init__(self,dimensionValue):
-        assert isinstance(dimensionValue,arelle.ModelInstanceObject.ModelDimensionValue)
-        self.proxy[dimensionValue] = self
-        self._realObject = dimensionValue
-        for a in ['dimension','member']:
+
+    def __init__(self, dimensionValue):
+        assert isinstance(dimensionValue, arelle.ModelInstanceObject.ModelDimensionValue)
+        self._proxy[dimensionValue] = self
+        self.realObject = dimensionValue
+        for a in ['dimension', 'member']:
             try:
-                _value = getattr(dimensionValue,a)
-                setattr(self,a,getProxy(_value))
+                _value = getattr(dimensionValue, a)
+                setattr(self, a, getProxy(_value))
             except AttributeError:
                 pass
 
+    @property
+    def isTyped(self):
+        return self.realObject.isTyped
 
-class ModelFact(IModelFact):
-    proxy = dict() # class variable
-    props = set() # class variable
+    @property
+    def isExplicit(self):
+        return self.realObject.isExplicit
+
+    @property
+    def typedMember(self):
+        try:
+            return self._typedMember
+        except AttributeError:
+            _v = self.realObject.typedMember
+            result = getProxy(_v)
+            self._typedMember = result
+            return result
+
+    @property
+    def memberQname(self):
+        if not self.isExplicit:
+            Exception("error",_("{} is not an explicit dimension").format(self))
+        return self.member.realObject.qname
+
+    @property
+    def dimensionQname(self):
+        return self.dimension.realObject.qname
+
+###
+
+class ModelFact(IModelFact, ModelObject):
+    _proxy = dict()  # class variable
+    _props = set()  # class variable
     """
-    set: {'document', 'contextID', 'iter', 'value', 'unitID', 'xValid', 'utrEntries', 'iterancestors', 'xsiNil', 'modelXbrl', 'ancestorQnames'}
+    {'contextID', 'text', 'utrEntries', 'ancestorQnames'}
     """
+
     @staticmethod
     def of(fact):
-        if isinstance(fact,(arelle.ModelInstanceObject.ModelInlineFact)):
+        if isinstance(fact, (arelle.ModelInstanceObject.ModelInlineFact)):
             return ModelInlineFact.of(fact)
         else:
-            assert isinstance(fact,arelle.ModelInstanceObject.ModelFact)
+            assert isinstance(fact, arelle.ModelInstanceObject.ModelFact)
             try:
-                return ModelFact.proxy[fact]
+                return ModelFact._proxy[fact]
             except KeyError:
                 return ModelFact(fact)
 
-    def __init__(self,fact):
-        assert isinstance(fact,arelle.ModelInstanceObject.ModelFact)
-        self.proxy[fact] = self
-        self._realObject = fact
-        for a in ['concept','context','unit']:
+    def __init__(self, fact):
+        assert isinstance(fact, arelle.ModelInstanceObject.ModelFact)
+        self._proxy[fact] = self
+        self.realObject = fact
+        for a in ['concept', 'context', 'unit']:
             try:
-                _value = getattr(fact,a)
-                setattr(self,a,getProxy(_value))
+                _value = getattr(fact, a)
+                setattr(self, a, getProxy(_value))
             except AttributeError:
                 pass
 
-    def anchorsInTextBlock(self):
-        result = []
-        for e in self.iter('*'): # for some reason iter('a') does not work.
-            if e.localName=='a' and not 'href' in e.attrib and ('id' in e.attrib  or 'name' in e.attrib):
+    @property
+    def ancestorQnames(self) -> Generator[QName, None, None]:
+        for q in self.realObject.ancestorQnames:
+            yield q
+            
+    @property
+    def utrEntries(self) -> Generator[Any, None, None]:
+        for utrEntry in self.realObject.utrEntries:
+            yield utrEntry
+
+    def anchorsInTextBlock(self) -> Generator[Tuple[str, int], None, None]:
+        tree = None
+        try:
+            s = sub(">[^<]+<", "><", self.text)
+            s = sub(".[a-z]+=\"[^\"]*\"", "", s)
+            s = sub(".[a-z]+=\'[^\']*'", "", s)
+            tree = lxml.etree.fromstring(s)
+        except:
+            return 
+        for e in tree.iter(tag='a'):
+            if not 'href' in e.attrib and ('id' in e.attrib  or 'name' in e.attrib):
                 atts = e.elementAttributesStr
                 line = e.sourceLine
-                result += [(atts,line)]
-        return result
-    
-    def unitSymbol(self): # method must exist on the fact and access the utr if needed.
+                yield (atts, line)
+
+    def unitSymbol(self) -> str:  # method must exist on the fact and access the utr if needed.
         """(str) -- utr symbol for this fact and unit"""
         if self.unit is not None and self.concept is not None:
-            return self.unit._realObject.utrSymbol(self.concept._realObject.type)
+            return self.unit.realObject.utrSymbol(self.concept.realObject.type)
         return ""
-    
+
     @property
-    def isNil(self):
-        return self._realObject.isNil
-    
+    def document(self) -> IModelDocument:
+        return self.realObject.document
+
     @property
-    def isNumeric(self):
-        return self._realObject.isNumeric
-    
+    def modelXbrl(self) -> IModelXbrl:
+        return self.realObject.modelXbrl
+
+    @property
+    def xsiNil(self) -> str:
+        return self.realObject.xsiNil
+
+    @property
+    def isNil(self) -> bool:
+        return self.realObject.isNil
+
+    @property
+    def isNumeric(self) -> bool:
+        return self.realObject.isNumeric
+
     @property
     def decimals(self):
-        return self._realObject.decimals
-    
-    @property
-    def xmlLang(self):
-        return self._realObject.xmlLang
-    
-    @property
-    def isTuple(self):
-        return self._realObject.isTuple
-    
-    @property
-    def contextId(self):
-        return self._realObject.contextId
-    
-    @property
-    def sourceline(self):
-        return self._realObject.sourceline
-    
-    @property
-    def qname(self):
-        return self._realObject.qname
-    
-    @property
-    def unitId(self):
-        return self._realObject.unitId
-    
+        return self.realObject.decimals
 
-class ModelInlineFact(IModelInlineFact):
-    proxy = dict() # class variable
-    props = set() # class variable
+    @property
+    def xmlLang(self) -> str:
+        return self.realObject.xmlLang
+
+    @property
+    def isTuple(self) -> bool:
+        return self.realObject.isTuple
+
+    @property
+    def contextID(self) -> str:
+        return self.realObject.contextID
+
+    @property
+    def sourceline(self) -> int:
+        return self.realObject.sourceline
+
+    @property
+    def unitID(self) -> str:
+        return self.realObject.unitID
+    
+    @property
+    def text(self) -> str:
+        return self.realObject.text
+
+    @property
+    def value(self):
+        return self.realObject.value
+
+
+###
+
+class ModelInlineFact(IModelInlineFact, ModelFact):
+    _proxy = dict()  # class variable
+    _props = set()  # class variable
     """set()"""
+
     @staticmethod
     def of(fact): 
-        assert isinstance(fact,arelle.ModelInstanceObject.ModelInlineFact)
-        try: return ModelInlineFact.proxy[fact]
+        assert isinstance(fact, arelle.ModelInstanceObject.ModelInlineFact)
+        try: return ModelInlineFact._proxy[fact]
         except: return ModelInlineFact(fact)
-    
-    def __init__(self,fact):
-        assert isinstance(fact,arelle.ModelInstanceObject.ModelInlineFact)
-        self.proxy[fact] = self
-        self._realObject = fact
-        self._realObject = fact
-        for a in ['concept','context','unit']:
+
+    def __init__(self, fact):
+        assert isinstance(fact, arelle.ModelInstanceObject.ModelInlineFact)
+        self._proxy[fact] = self
+        self.realObject = fact
+        self.realObject = fact
+        for a in ['concept', 'context', 'unit']:
             try:
-                _value = getattr(fact,a)
-                setattr(self,a,getProxy(_value))
+                _value = getattr(fact, a)
+                setattr(self, a, getProxy(_value))
             except AttributeError:
                 pass
 
-class ModelXbrl(IModelXbrl): 
-    proxy = {} # class variable
-    props = set() # class variable
-    
+    @property
+    def contextID(self) -> str:
+        return self.realObject.contextID
+
+    @property
+    def unitID(self) -> str:
+        return self.realObject.contextID
+
+###
+
+class ModelXbrl(IModelXbrl, ModelObject): 
+    _proxy = {}  # class variable
+    _props = set()  # class variable
+
     """set: {'labelroles', 'langs', 'urlUnloadableDocs', 'nameConcepts', 'roleTypes', 'schemaDocsToValidate', 'errors', 'arelleUnitTests', 'baseSets', 'units', 'matchSubstitutionGroup', 'skipDTS', 'debug', 'modelObjects', 'modelManager', 'urlDocs', 'fileSource', 'profileActivity', 'namespaceDocs', 'relationshipSets', 'modelDocument'}"""
 
     @staticmethod
     def of(modelXbrl): 
-        assert isinstance(modelXbrl,arelle.ModelXbrl.ModelXbrl)
-        try: return ModelXbrl.proxy[modelXbrl]
+        assert isinstance(modelXbrl, arelle.ModelXbrl.ModelXbrl)
+        try: return ModelXbrl._proxy[modelXbrl]
         except: return ModelXbrl(modelXbrl)
-    
-    def __init__(self,modelXbrl):
-        self.proxy[modelXbrl] = self
-        self._realObject = modelXbrl
-        for a in ['contexts','facts','factsByQname','qnameConcepts']:
+
+    def __init__(self, modelXbrl):
+        self._proxy[modelXbrl] = self
+        self.realObject = modelXbrl
+        for a in ['contexts', 'facts', 'factsByQname', 'nameConcepts', 'qnameConcepts','modelDocument']:
             try:
-                _value = getattr(modelXbrl,a)
-                setattr(self,a,getProxy(_value))
+                _value = getattr(modelXbrl, a)
+                setattr(self, a, getProxy(_value))
             except AttributeError:
                 pass
 
-                        
+    @property
+    def units(self) -> Generator[str, None, None]:
+        for u in self.realObject.units:
+            yield u
+
     def relationshipSet(self, arcrole, linkrole=None, linkqname=None, arcqname=None, includeProhibits=False):
         # TODO: rewrite as iterator with a predicate filter instead of curious tokens like arcrole='XBRL-footnote'
-        return ModelRelationshipSet.of(self._realObject.relationshipSet(
+        return ModelRelationshipSet.of(self.realObject.relationshipSet(
             arcrole
-            ,linkrole=linkrole
-            ,linkqname=linkqname
-            ,arcqname=arcqname
-            ,includeProhibits=includeProhibits))
+            , linkrole=linkrole
+            , linkqname=linkqname
+            , arcqname=arcqname
+            , includeProhibits=includeProhibits))
+
+    @property
+    def xValue(self):
+        return None
+    
+    def load(self,uri,**kwargs):
+        return arelle.ModelDocument.load(self.realObject,uri,**kwargs)
+
+    @property
+    def namespaces(self) -> Generator[str, None, None]:
+        namespaceSet = None 
+        try:
+            namespaceSet = self._namespaceSet
+        except AttributeError:
+            namespaceSet = {k for k in self.realObject.namespaceDocs.keys()}
+        for namespace in namespaceSet:
+            yield namespace
 
 
 # Constant
 maker = {arelle.ModelInstanceObject.ModelFact : ModelFact.of
-           ,arelle.ModelInstanceObject.ModelInlineFact : ModelInlineFact.of
-           ,arelle.ModelInstanceObject.ModelContext : ModelContext.of
-           ,arelle.ModelInstanceObject.ModelUnit : ModelUnit.of 
-           ,arelle.ModelDtsObject.ModelConcept : ModelConcept.of
-           ,arelle.ModelDtsObject.ModelType : ModelType.of
-           ,arelle.ModelDtsObject.ModelLink : ModelLink.of
-           ,arelle.ModelDtsObject.ModelRelationship : ModelRelationship.of
-           ,arelle.ModelDtsObject.ModelResource : ModelResource.of
-           ,arelle.ModelXbrl.ModelXbrl : ModelXbrl.of
-           ,arelle.ModelDocument.ModelDocument : ModelDocument.of
-           ,arelle.ModelInstanceObject.ModelDimensionValue : ModelDimensionValue.of
-           ,arelle.ModelObject.ModelObject : (lambda x: x)
-           ,str : (lambda x: x)
-           ,int : (lambda x: x)
-           ,float : (lambda x: x)
-           ,arelle.ModelValue.QName : (lambda x : x)
+           , arelle.ModelInstanceObject.ModelInlineFact : ModelInlineFact.of
+           , arelle.ModelInstanceObject.ModelContext : ModelContext.of
+           , arelle.ModelInstanceObject.ModelUnit : ModelUnit.of 
+           , arelle.ModelDtsObject.ModelConcept : ModelConcept.of
+           , arelle.ModelDtsObject.ModelType : ModelType.of
+           , arelle.ModelDtsObject.ModelLink : ModelLink.of
+           , arelle.ModelDtsObject.ModelRelationship : ModelRelationship.of
+           , arelle.ModelDtsObject.ModelResource : ModelResource.of
+           , arelle.ModelXbrl.ModelXbrl : ModelXbrl.of
+           , arelle.ModelDocument.ModelDocument : ModelDocument.of
+           , arelle.ModelInstanceObject.ModelDimensionValue : ModelDimensionValue.of
+           , arelle.ModelObject.ModelObject : ModelObject.of
+           , arelle.ModelValue.QName : (lambda x : x)
+           , str : (lambda x: x)
+           , int : (lambda x: x)
+           , float : (lambda x: x)
+           , list : (lambda obj: [getProxy(o) for o in obj])
+           , defaultdict : (lambda obj: defaultdict(obj.default_factory, {getProxy(k) : getProxy(v) for k, v in obj.items()}))
+           , dict : (lambda obj: {getProxy(k) : getProxy(v) for k, v in obj.items()})
+           , set : (lambda obj: {getProxy(o) for o in obj})
            }
+
 
 def getProxy(obj):
     result = obj
     try:
         result = maker[type(obj)](obj)
     except KeyError:
-        if type(obj) in [list]:
-            result = [getProxy(o) for o in obj]
-        elif type(obj) in [defaultdict]:
-            result = defaultdict(obj.default_factory,{getProxy(k) : getProxy(v) for k,v in obj.items()})
-        elif type(obj) in [dict]:
-            result = {getProxy(k) : getProxy(v) for k,v in obj.items()}
-        elif type(obj) in [set]:
-            result = {getProxy(o) for o in obj}
-        elif obj == None:
+        if obj == None:
             pass
         else: 
-            raise Exception("error","Cannot get proxy for {} {}".format(type(obj),obj))
+            raise Exception("error", "Cannot get proxy for {} {}".format(type(obj), obj))
     return result
 
-def isDimensionItem(o):
-    return isinstance(o,arelle.ModelDtsObject.ModelConcept) and o.isDimensionItem
+
+def isDimensionItem(o) -> bool:
+    return isinstance(o, arelle.ModelDtsObject.ModelConcept) and o.isDimensionItem
 
 """
 replacements for arelle.ModelValue
 """
 
-def isQName (o):
-    return isinstance(o,arelle.ModelValue.QName)
+
+def isQName (o) -> bool:
+    return isinstance(o, arelle.ModelValue.QName)
+
 
 class QName (arelle.ModelValue.QName):
     pass
 
-def isIsoDuration (o):
-    return isinstance(o,arelle.ModelValue.IsoDuration)
+
+def isIsoDuration (o) -> bool:
+    return isinstance(o, arelle.ModelValue.IsoDuration)
+
 
 class IsoDuration (arelle.ModelValue.IsoDuration):
     pass
 
-qname = arelle.ModelValue.qname # function
 
+qname = arelle.ModelValue.qname  # function
 
 """
 Miscellaneous replacements
 """
 
+
 class Cntlr (arelle.Cntlr.Cntlr):
     pass
 
-referencedFiles = arelle.ValidateFilingText.referencedFiles # function
 
-collapseWhitespace = arelle.XmlUtil.collapseWhitespace # function
-descendantAttr = arelle.XmlUtil.descendantAttr # function
+referencedFiles = arelle.ValidateFilingText.referencedFiles  # function
 
-VALID = arelle.XmlValidate.VALID # enum int
-VALID_NO_CONTENT = arelle.XmlValidate.VALID_NO_CONTENT # enum int
+collapseWhitespace = arelle.XmlUtil.collapseWhitespace  # function
+descendantAttr = arelle.XmlUtil.descendantAttr  # function
+
+VALID = arelle.XmlValidate.VALID  # enum int
+VALID_NO_CONTENT = arelle.XmlValidate.VALID_NO_CONTENT  # enum int
 
 
-def mainFunHook(modelXbrl,**kwargs): #@UnusedVariable
+def mainFunHook(modelXbrl, **ignore): 
         # occurs upon <?arelle-unit-test location="EdgarRenderer/Filing.py#mainFun" action="AssertionError"?>
     if "EdgarRenderer/Filing.py#mainFun" in modelXbrl.arelleUnitTests:
         action = modelXbrl.arelleUnitTests["EdgarRenderer/Filing.py#mainFun"]
         objectConstructor = __dict__[action]
         raise objectConstructor("EdgarRenderer/Filing.py#mainFun")
 
-
-
-
-        
-
+"""
+"ModelDocument {'type', 'basename'}",
+ "ModelObject {'get'}",
+ "ModelXbrl {'profileActivity', 'modelManager', 'relationshipSets', 'errors', 'arelleUnitTests',
+ 'debug', 'roleTypes', 'fileSource', 'namespaceDocs', 'urlDocs'}"]
  
-"""
-gsed -r -n 's/.*((model[A-Z][a-zA-Z0-9_]*|fact|context|unit|qname|controller)\.[a-zA-Z0-9_]*[\.\[\(]?).*/\1/gp' *.py | sort -u
-
-context.dimsHash
-context.endDatetime
-context.entityIdentifier
-context.entityIdentifier[
-context.id
-context.isForeverPeriod
-context.period.
-context.qnameDims.
-context.scenario
-context.scenario.
-
-fact.
-fact.ancestorQnames
-fact.concept
-fact.concept.
-fact.context
-fact.contextID
-fact.decimals
-fact.decimals.
-fact.document
-fact.isNil
-fact.isNumeric
-fact.isTuple
-fact.iterancestors(
-fact.modelXbrl
-fact.prefixedName
-fact.qname
-fact.sValue
-fact.sourceline
-fact.unit
-fact.unitID
-fact.unitSymbol(
-fact.utrEntries.
-fact.value
-fact.value.
-fact.xValid
-fact.xValue
-fact.xmlLang
-fact.xsiNil
-
-modelDocument.basename
-modelDocument.filepath
-modelDocument.filepathdir
-modelDocument.referencesDocument.
-modelDocument.relativeUri(
-modelDocument.targetDocumentPreferredFilename
-modelDocument.targetDocumentSchemaRefs
-modelDocument.type
-modelDocument.uri
-
-modelManager.abortOnMajorError
-modelManager.cntlr.
-modelManager.disclosureSystem
-modelManager.formulaOptions.
-modelManager.showStatus(
-modelManager.validate(
-modelManager.validateDisclosureSystem
-
-modelRelationshipsFrom.items(
-modelRelationshipsFrom.keys(
-modelRelationshipsTo.keys(
-
-modelType.qnameDerivedFrom
-
-modelXbrl.arelleUnitTests
-modelXbrl.arelleUnitTests[
-modelXbrl.contexts.
-modelXbrl.debug(
-modelXbrl.duplicateFactSet
-modelXbrl.efmOptions
-modelXbrl.error(
-modelXbrl.errors
-modelXbrl.extractedInlineInstance
-modelXbrl.facts
-modelXbrl.factsByQname.
-modelXbrl.factsByQname[
-modelXbrl.fileSource
-modelXbrl.fileSource.
-modelXbrl.info(
-modelXbrl.ixdsHtmlElements
-modelXbrl.log(
-modelXbrl.logger.
-modelXbrl.modelDocument
-modelXbrl.nameConcepts[
-modelXbrl.namespaceDocs.
-modelXbrl.prefixedNamespaces[
-modelXbrl.profileActivity(
-modelXbrl.profileStat(
-modelXbrl.qnameConcepts
-modelXbrl.qnameConcepts.
-modelXbrl.qnameConcepts[
-modelXbrl.qnameTypes
-modelXbrl.qnameTypes[
-modelXbrl.relationshipSet(
-modelXbrl.relationshipSets.
-modelXbrl.roleTypeName(
-modelXbrl.roleTypes[
-modelXbrl.units
-modelXbrl.urlDocs.
-modelXbrl.warning(
-qname.clarkNotation
-qname.localName
-qname.localName.
-qname.localname
-qname.namespace
-qname.namespaceURI
-unit.
-unit.id
-unit.isSingleMeasure
-unit.measures[
-unit.sourceline
-unit.value
-
-controller.ErrorMsgs
-controller.VERSION
-controller.auxMetadata
-controller.cntlr.
-controller.createdFolders
-controller.debugMode
-controller.entrypoint
-controller.entrypointFolder
-controller.excelXslt
-controller.factCubeCount
-controller.factCubeCount[
-controller.factHasHtmlAnchor
-controller.formatLogMessage(
-controller.includeLogsInSummary
-controller.inlineList
-controller.instanceList
-controller.instanceSummaryList
-controller.logDebug(
-controller.logError(
-controller.logInfo(
-controller.logTrace(
-controller.nextBarChartFileNum
-controller.nextFileNum
-controller.nextUncategorizedFileNum
-controller.noEquity
-controller.originalProcessingFolder
-controller.otherXbrlList
-controller.processInZip
-controller.processingFolder
-controller.renderedFiles.
-controller.reportFormat
-controller.reportFormat.
-controller.reportXslt
-controller.reportXsltDissem
-controller.reportZip
-controller.reportZip.
-controller.reportsFolder
-controller.roleHasHtmlAnchor
-controller.roleHasHtmlAnchor[
-controller.sourceDict
-controller.summaryHasLogEntries
-controller.summaryXslt
-controller.supplementList
-controller.supplementalFileList
-controller.validatedForEFM
-controller.writeFile(
-controller.xlWriter
-"""
+ """

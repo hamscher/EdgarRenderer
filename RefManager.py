@@ -54,7 +54,7 @@ class RefManager(object):
             for url in self.getUrls(modelXbrl):
                 doc = None
                 try: # isSupplemental is needed here to force the parsing of linkbase.
-                    doc = brel.load(modelXbrl,url,isSupplemental=True)
+                    doc = modelXbrl.load(url,isSupplemental=True)
                     loadedAdditionalUrls = True
                 except (brel.LoadingException):
                     pass

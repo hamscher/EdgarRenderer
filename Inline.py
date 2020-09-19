@@ -71,7 +71,7 @@ def saveTargetDocumentIfNeeded(cntlr, options, modelXbrl, filing, suffix="_htm."
         if cntlr.reportZip:
             filingZip = cntlr.reportZip
 
-    saveTargetDocument(cntlr,filing, modelXbrl, targetFilename, targetSchemaRefs,
+    saveTargetDocument(cntlr,filing, modelXbrl.realObject, targetFilename, targetSchemaRefs, # TODO: how to do this?
                        outputZip=filingZip, filingFiles=filingFiles, suffix=suffix, iext=iext)
         
     if options.saveTargetFiling:

@@ -96,7 +96,7 @@ def mainFun(controller, modelXbrl, outputFolderName):
             Utils.embeddingGarbageCollect(embedding)
         controller.logDebug("R{} total {:.3f} secs.".format(cube.fileNumber, time.time() - _funStartedAt))
         Utils.cubeGarbageCollect(cube)
-        
+
     _funStartedAt = time.time()
 
     # now we make sure that every cube referenced by embedded command facts actually gets embedded.  this might not happen
@@ -141,11 +141,15 @@ def mainFun(controller, modelXbrl, outputFolderName):
     if len(filing.unusedFactSet) > 0:
         filing.handleUncategorizedCube(xlWriter)
         controller.nextUncategorizedFileNum -= 1
-        
+
     controller.instanceSummaryList += [Summary.InstanceSummary(filing, modelXbrl)]  
     controller.logDebug("Filing finish {:.3f} secs.".format(time.time() - _funStartedAt)); _funStartedAt = time.time()
-    
-    
+
+    msg = []
+    for k,cls in {k : getattr(brel,k) for k in dir(brel)}.items():
+        p = getattr(cls,'_props',{})
+        if len(p) > 0: 
+            msg.append("{} {}".format(k,p))
     return True
 
 
@@ -170,17 +174,17 @@ class Filing(object):
 
         self.hasEmbeddings = False
         self.disallowEmbeddings = True
-        
+
         # These namespaces contain elements treated specially in some ways.
-        self.rrNamespace = next((n for n in self.modelXbrl.namespaceDocs.keys() if n is not None and re.search('sec.gov/rr/20',n) is not None),None)
-        self.investNamespace = next((n for n in self.modelXbrl.namespaceDocs.keys() if n is not None and re.search('sec.gov/invest/20',n) is not None),None)
-        self.usgaapNamespace = next((n for n in self.modelXbrl.namespaceDocs.keys() if n is not None and re.search('fasb.org/us-gaap/20',n) is not None),None)
-        self.ifrsNamespace = next((n for n in self.modelXbrl.namespaceDocs.keys() if n is not None and re.search('ifrs.org/taxonomy/20.*/ifrs',n) is not None),None)
-        self.deiNamespace = next((n for n in self.modelXbrl.namespaceDocs.keys() if n is not None and re.search('sec.gov/dei/20',n) is not None), None)
-        self.srtNamespace = next((n for n in self.modelXbrl.namespaceDocs.keys() if n is not None and re.search('fasb.org/srt/20',n) is not None),None)
+        self.rrNamespace = next((n for n in self.modelXbrl.namespaces if n is not None and re.search('sec.gov/rr/20',n) is not None),None)
+        self.investNamespace = next((n for n in self.modelXbrl.namespaces if n is not None and re.search('sec.gov/invest/20',n) is not None),None)
+        self.usgaapNamespace = next((n for n in self.modelXbrl.namespaces if n is not None and re.search('fasb.org/us-gaap/20',n) is not None),None)
+        self.ifrsNamespace = next((n for n in self.modelXbrl.namespaces if n is not None and re.search('ifrs.org/taxonomy/20.*/ifrs',n) is not None),None)
+        self.deiNamespace = next((n for n in self.modelXbrl.namespaces if n is not None and re.search('sec.gov/dei/20',n) is not None), None)
+        self.srtNamespace = next((n for n in self.modelXbrl.namespaces if n is not None and re.search('fasb.org/srt/20',n) is not None),None)
         self.isRR = self.rrNamespace is not None
         self.isInvestTaxonomyInDTS = self.investNamespace is not None
-        
+
         self.builtinEquityColAxes = [('dei',self.deiNamespace,'LegalEntityAxis'),
                                      ('ifrs-full',self.ifrsNamespace,'ComponentsOfEquityAxis'),
                                      ('us-gaap',self.usgaapNamespace,'StatementEquityComponentsAxis'),
@@ -213,7 +217,7 @@ class Filing(object):
                                  ,brel.QName('ifrs-full',self.ifrsNamespace,'StatementOfChangesInEquityLineItems')
                                  ]
         self.segmentHeadingStopList = [brel.QName(x,y,z) for x,y,z in self.builtinEquityRowAxes]
-        
+
         self.factToEmbeddingDict = {}
         self.factFootnoteDict = defaultdict(list)
         self.startEndContextDict = {}
@@ -320,7 +324,7 @@ class Filing(object):
                         cube.defaultFilteredOutAxisSet.add(concept.qname)
             # return each parentChildRelationshipSet to gc
             # del dimensionDefaultRelationshipSet, parentChildRelationshipSet
-            
+
             # print warnings of missing defaults for each cube
             for cube in self.cubeDict.values():
                 if len(cube.defaultFilteredOutAxisSet) > 0:
@@ -330,7 +334,7 @@ class Filing(object):
                                          axes=cube.defaultFilteredOutAxisSet)
 
             footnoteRelationships = self.modelXbrl.relationshipSet('XBRL-footnotes')
-            
+
             # initialize elements
             for qname, factSet in self.modelXbrl.factsByQname.items():
 
@@ -430,7 +434,7 @@ class Filing(object):
                 if relationship.fromModelObject not in dupFactFootnoteOrigin:
                     # only process firstFact footnotes on this pass
                     self.factFootnoteDict[relationship.fromModelObject].append((relationship.toModelObject, relationship.toModelObject.viewText()))
-                    
+
             # now the duplicates, if footnote not already in the firstFact footnotes list
             for relationship in footnoteRelationships.modelRelationships:
                 dupFirstFact = dupFactFootnoteOrigin.get(relationship.fromModelObject)
@@ -444,7 +448,7 @@ class Filing(object):
                             break
                     if not _contentsDuplicated:
                         self.factFootnoteDict[dupFirstFact].append((relationship.toModelObject, relationship.toModelObject.viewText()))
-                        
+
             facts = self.modelXbrl.facts
 
         for context in self.modelXbrl.contexts.values():
@@ -527,7 +531,7 @@ class Filing(object):
                 axisMemberLookupDict['unit'] = fact.unit.id
 
             # add each axis to axisMemberLookupDict
-            for dimensionPair in fact.context.qnameDims.values():
+            for dimensionPair in fact.context.dimensionValues:
                 dimensionConcept = dimensionPair.dimension
                 memberConcept = dimensionPair.member
                 if dimensionConcept is None: 
@@ -544,7 +548,7 @@ class Filing(object):
                             _("Context %(contextID)s explicit dimension %(dimension)s member %(value)s is not a global member item"),
                             modelObject=(dimensionPair,fact), contextID=fact.context.id, 
                             dimension=dimensionPair.dimensionQname, value=dimensionPair.memberQname)
-                elif dimensionPair.isTyped and dimensionPair.typedMember.xValid < brel.VALID:
+                elif dimensionPair.isTyped and not dimensionPair.typedMember.isValid:
                     self.modelXbrl.debug("debug",
                         _("Context %(contextID)s typed dimension %(dimension)s member %(value)s is not an xml schema validated value"),
                         modelObject=(dimensionPair,fact), contextID=fact.context.id, 
@@ -742,7 +746,7 @@ class Filing(object):
                     listToAddToOutput += [tokenMember]
                 else:
                     invalidTokens.append(tokenMember)
-                    
+
             if invalidTokens:
                 errorStr = Utils.printErrorStringToDiscribeEmbeddedTextBlockFact(fact)
                 self.modelXbrl.error("EFM.6.26.04.embeddingCmdMalformedMember",
@@ -760,7 +764,7 @@ class Filing(object):
         cube.isEmbedded = True
         self.hasEmbeddings = True
         self.disallowEmbeddings = False
-        
+
         embedding = Embedding.Embedding(self, cube, outputList, factThatContainsEmbeddedCommand = fact)
         cube.embeddingList += [embedding]
         self.factToEmbeddingDict[fact] = embedding
@@ -798,7 +802,7 @@ class Filing(object):
         uncategorizedCube.fileNumber = self.controller.nextUncategorizedFileNum
         uncategorizedCube.shortName = uncategorizedCube.definitionText = 'Uncategorized Items - ' + self.entrypoint
         uncategorizedCube.isElements = True
-        
+
         # now run populateAndLinkClasses() again and let it re-populate and re-link everything from scratch but let it do so
         # only with filing.unusedFactSet as it's fact set and with only the uncategorizedCube, and no other cubes.
         self.cubeDict[uncategorizedCube.linkroleUri] = uncategorizedCube
@@ -932,7 +936,7 @@ class Filing(object):
         else:
             report.generateRowAndOrColHeadingsGeneralCase()
         self.controller.logDebug("R{} headings {:.3f} secs.".format(cube.fileNumber, time.time() - _rStartedAt)); _rStartedAt = time.time()
-        
+
         report.emitRFile()
         self.controller.logDebug("R{} emit RFile {:.3f} secs.".format(cube.fileNumber, time.time() - _rStartedAt))
 
@@ -1120,12 +1124,12 @@ class StartEndContext(object):
             modifiedEndTime = datetime.datetime(datetime.MAXYEAR,12,31,0,0)
         delta = dateutil.relativedelta.relativedelta(modifiedEndTime, self.startTime)
         return delta.years * 12 + delta.months
-    
+
     def startOrInstantTime(self):
         if self.startTime is None:
             return self.endTime
         return self.startTime
-    
+
     def __str__(self):
         if self.periodTypeStr=='instant':
             return "[{}]".format(self.endTimePretty[:10])
@@ -1162,11 +1166,16 @@ class Member(object):
         self.axis = None
         self.parent = None
         self.memberHash = hash((hash(self.concept), hash(typedHash)))
+
     def initTypedElt(self, typedElt):
-        if brel.VALID <= getattr(typedElt, "xValid") < brel.VALID_NO_CONTENT:
+        if typedElt.isValidOrValidID:
             if typedElt.get("{http://www.w3.org/2001/XMLSchema-instance}nil") in ("true", "1"):
                 self.typedMemberIsNil = True
-            typedValue = getattr(typedElt, "xValue", None)
+            typedValue = None
+            try:
+                typedValue = typedElt.xValue
+            except AttributeError:
+                pass
             try:
                 self.typedKey.append(typedElt.modelXbrl.qnameConcepts[typedElt.qname].type.facets["enumeration"][typedElt.xValue].objectIndex)
             except (AttributeError, IndexError, TypeError):
@@ -1184,7 +1193,7 @@ class Member(object):
     @property
     def typedMemberSortKey(self):
         return self.typedKey or self.typedValue
-        
+
     def linkAxis(self, axisObj):
         self.axis = axisObj
     def linkParent(self, parentObj):

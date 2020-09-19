@@ -389,7 +389,7 @@ class InstanceSummary(object):
             self.dts[doctype][rl] += [f]
         self.dtsroots = self.instanceFiles + self.inlineFiles
                 
-#         self.hasRR = next((True for n in modelXbrl.namespaceDocs.keys()
+#         self.hasRR = next((True for n in modelXbrl.namespaces()
 #                            if 'http://xbrl.sec.gov/rr/' in n), False)
 #         for fileUri, doc in sorted(modelXbrl.urlDocs.items()):
 #             if not matchHttp.match(fileUri):
@@ -421,7 +421,7 @@ class InstanceSummary(object):
                 if fact.context is not None: contextsInUseSet.add(fact.context)
                 if fact.unit is not None: unitsInUseSet.add(fact.unit)
                 if brel.qnIXbrl11Hidden in fact.ancestorQnames: 
-                    hiddenSet.add(fact)                    
+                    hiddenSet.add(fact)
                         
         for c in contextSet:
             for s in c.segDimValues.values():
@@ -432,11 +432,12 @@ class InstanceSummary(object):
         
         for context in contextsInUseSet:
             entityInUseSet.add(context.entityIdentifier)
-            for segment in context.qnameDims.values():  # entity
+            for dimensionValue in context.dimensionValues:  # entity
                 # TODO: This may assume all dimensions are explicit.
-                segmentsInUseSet.add(segment)
-                memberInUseSet.add(segment.memberQname)
-                axisInUseSet.add(segment.dimensionQname)
+                segmentsInUseSet.add(dimensionValue)
+                if dimensionValue.isExplicit:
+                    memberInUseSet.add(dimensionValue.memberQname)
+                axisInUseSet.add(dimensionValue.dimensionQname)
                 
 
         self.contextCount = len(contextSet)
@@ -513,10 +514,9 @@ class InstanceSummary(object):
         # build a dictionary tree of the eventual JSON output.
         self.tagDict = {}
         for concept in conceptInUseSet:
-            self.tagDict[concept.attrib['id']] = {'xbrltype' : (concept.typeQname).localName
-                                                  ,'nsuri': concept.qname.namespaceURI
-                                                  ,'localname': concept.qname.localName}
-            tag = self.tagDict[concept.attrib['id']]
+            qname = concept.qname
+            tag = {'xbrltype' : (concept.typeQname).localName, 'nsuri': qname.namespaceURI, 'localname': qname.localName}
+            self.tagDict[concept.id] = tag
             roleDict = None
             if concept.balance is not None: tag['crdr'] = concept.balance
             calculations = summationItemRelationshipSet.modelRelationshipsTo[concept]
@@ -524,15 +524,14 @@ class InstanceSummary(object):
                 roleDict = tag['calculation'] = {}
                 for calculation in calculations:
                     role = calculation.linkrole
-                    if not hasattr(calculation.fromModelObject,'attrib'): continue
-                    parentTag =  calculation.fromModelObject.attrib['id']
+                    src = calculation.fromModelObject
+                    if not hasattr(src,'id'): continue # seems impossible
+                    parentTag =  src.id
                     weight = calculation.weight
                     order = calculation.order
                     if order is None: order = 1
                     # here we assume that in a given role only one calc parent is allowed.
-                    roleDict[role] = {'parentTag' : parentTag
-                                        ,'weight' : weight
-                                        ,'order' : order} 
+                    roleDict[role] = {'parentTag' : parentTag, 'weight' : weight, 'order' : order} 
             calculations = summationItemRelationshipSet.modelRelationshipsFrom[concept]
             if calculations is not None and len(calculations) > 0:
                 for calculation in calculations:
@@ -566,7 +565,7 @@ class InstanceSummary(object):
         self.conceptInUseSet = {concept.qname for concept in conceptInUseSet}
         self.namespacesInUseSet = {qname.namespaceURI for qname in self.conceptInUseSet if Utils.isEfmStandardNamespace(qname.namespaceURI)}
 
-        #/ hasRR = self.hasRR = next((True for n in modelXbrl.namespaceDocs.keys() if 'http://xbrl.sec.gov/rr/' in n), False)
+        #/ hasRR = self.hasRR = next((True for n in modelXbrl.namespaces() if 'http://xbrl.sec.gov/rr/' in n), False)
         if (self.hasRR and hasattr(modelXbrl,'ixdsHtmlElements')): # RR summaries have "S1" "S2" entries.
             # the array is constructed by walking the entire inline XBRL document
             # for each unique combination of document information members and legal entity (series) members
@@ -575,7 +574,7 @@ class InstanceSummary(object):
             for context in contextsInUseSet:
                 if (context.dimsHash not in rrSectionDimsHashDict):
                     isInRrSection = True
-                    for segment in context.qnameDims.values():
+                    for segment in context.dimensionValues:
                         if ('://xbrl.sec.gov/dei/' not in segment.dimensionQname.namespaceURI):
                             isInRrSection = False
                             break
@@ -623,12 +622,14 @@ class InstanceSummary(object):
                           }                
                 _memberDocument = None
                 _memberSeries = None
-                for axis,dim in fact.context.qnameDims.items():
+                for dimensionPair in fact.context.dimensionValues:
+                    axis = dimensionPair.dimension.concept.qname
+                    member = dimensionPair.member
                     _labels = {}
                     if (axis.namespaceURI.startswith('http://xbrl.sec.gov/dei/')):
                         if (axis.localName == 'DocumentInformationDocumentAxis'):                            
                             try:
-                                _labels = self.tagDict[dim.member.id]['lang']['en-US']['role']
+                                _labels = self.tagDict[member.id]['lang']['en-US']['role']
                                 if ('terseLabel' in _labels):
                                     _memberDocument = _labels['terseLabel']
                                 elif ('label' in _labels):
@@ -637,7 +638,7 @@ class InstanceSummary(object):
                                 pass
                         elif (axis.localName == 'LegalEntityAxis'):
                             try:
-                                _labels = self.tagDict[dim.member.id]['lang']['en-US']['role']
+                                _labels = self.tagDict[member.id]['lang']['en-US']['role']
                                 if ('terseLabel' in _labels):
                                     _memberSeries = _labels['terseLabel']
                                 elif ('label' in _labels):

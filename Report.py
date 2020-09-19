@@ -1102,10 +1102,10 @@ class Report(object):
         while cubeCount < 3: # if every fact appears in 3 or more reports, don't even bother.
             cubeCount += 1
             for row in self.rowList:
-                for cell in row.cellList: # WcH 6/19/2016 do not consider facts in hidden cells
+                for cell in row.cellList:
                     fact = None
                     if cell is not None and not getattr(cell.column,'isHidden',False): fact = cell.fact
-                    if (fact is not None and fact.xValid and \
+                    if (fact is not None and fact.isValid and \
                         (brel.qnIXbrl11Hidden not in fact.ancestorQnames)):
                         doc = fact.document
                         ref = None

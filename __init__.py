@@ -765,7 +765,8 @@ class EdgarRenderer():
                 self.logWarn(_("The rendering engine was unable to {} after {} validation errors.").format(action, errorCountDuringValidation))
             else:
                 self.logWarn(_("The rendering engine was unable to {} due to an internal error.  This is not considered an error in the filing.").format(action, errorCountDuringValidation))
-            self.logDebug(_("Exception traceback: {}").format(traceback.format_exception(*sys.exc_info())))
+            msg = traceback.format_exception(*sys.exc_info())
+            self.logDebug(_("Exception traceback: {}").format(msg))
         self.renderedFiles = filing.renderedFiles # filing-level rendered files
         if not success:
             self.success = False

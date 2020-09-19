@@ -52,7 +52,7 @@ def isRate(fact : brel.ModelFact, filing : Filing) -> bool:
              (isFactTypeEqualToOrDerivedFrom(fact, isPureItemTypeQname) and
                 (isEfmInvestNamespace(fact.qname.namespaceURI) or filing.isRR)) or
              (fact.unit is not None and fact.unit.isSingleMeasure and 
-              any(utrEntry.unitId == 'Rate' for utrEntry in fact.utrEntries.copy())))
+              any(utrEntry.unitId == 'Rate' for utrEntry in fact.utrEntries))) # why was this utrEntries.copy() ?
 
 def printErrorStringToDisambiguateEmbeddedOrNot(embeddedCommandFact : brel.ModelFact) -> str:
     if embeddedCommandFact is None:
