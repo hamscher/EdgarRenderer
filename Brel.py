@@ -341,11 +341,11 @@ class ModelObject (IModelObject):
     @property
     def tag(self) -> str:
         return self.realObject.tag
-    
+
     @property
     def xValue(self) -> str:
         return self.realObject.xValue
-    
+
     @property
     def localName(self) -> str:
         return self.realObject.localName
@@ -661,7 +661,7 @@ class ModelRelationshipSet (IModelRelationshipSet, ModelObject):
         assert isinstance(relationshipSet, arelle.ModelRelationshipSet.ModelRelationshipSet)
         try: return ModelRelationshipSet._proxy[relationshipSet]
         except: return ModelRelationshipSet(relationshipSet)
-        
+
     def __init__(self, relationshipSet):
         assert isinstance(relationshipSet, arelle.ModelRelationshipSet.ModelRelationshipSet)
         self._proxy[relationshipSet] = self
@@ -819,6 +819,26 @@ class ModelDocument (IModelDocument, ModelObject):
             except AttributeError:
                 pass
 
+    @property
+    def targetDocumentPreferredFilename(self) -> str:
+        result =self.realObject.targetDocumentPreferredFilename
+        return result
+
+    @property
+    def targetDocumentSchemaRefs(self) -> {str}:
+        result = self.realObject.targetDocumentSchemaRefs
+        return result
+
+    @property
+    def basename(self) -> str:
+        result = self.realObject.basename
+        return result
+
+    def type(self) -> Type:
+        result = self.realObject.type
+        return result
+
+###
 ###
 
 class ModelDimensionValue (IModelDimensionValue, ModelObject):
@@ -908,7 +928,7 @@ class ModelFact(IModelFact, ModelObject):
     def ancestorQnames(self) -> Generator[QName, None, None]:
         for q in self.realObject.ancestorQnames:
             yield q
-            
+
     @property
     def utrEntries(self) -> Generator[Any, None, None]:
         for utrEntry in self.realObject.utrEntries:
@@ -978,7 +998,7 @@ class ModelFact(IModelFact, ModelObject):
     @property
     def unitID(self) -> str:
         return self.realObject.unitID
-    
+
     @property
     def text(self) -> str:
         return self.realObject.text
@@ -1015,11 +1035,15 @@ class ModelInlineFact(IModelInlineFact, ModelFact):
 
     @property
     def contextID(self) -> str:
-        return self.realObject.contextID
+        result = self.realObject.contextID
+        assert type(result) == str
+        return result
 
     @property
     def unitID(self) -> str:
-        return self.realObject.contextID
+        result = self.realObject.unitID
+        assert type(result) == str
+        return result
 
 ###
 
@@ -1060,10 +1084,16 @@ class ModelXbrl(IModelXbrl, ModelObject):
             , includeProhibits=includeProhibits))
 
     @property
+    def relationshipSets(self) -> Dict[Tuple[str],ModelRelationshipSet]:        
+        _value = self.realObject.relationshipSets
+        result = {k : getProxy(v) for k,v in _value.items()}
+        return result
+
+    @property
     def xValue(self):
         return None
-    
-    def load(self,uri,**kwargs):
+
+    def load(self,uri,**kwargs) -> None:
         return arelle.ModelDocument.load(self.realObject,uri,**kwargs)
 
     @property
@@ -1076,6 +1106,65 @@ class ModelXbrl(IModelXbrl, ModelObject):
         for namespace in namespaceSet:
             yield namespace
 
+    @property
+    def fileSource(self) -> arelle.FileSource.FileSource:
+        result = self.realObject.fileSource
+        assert type(result) == arelle.FileSource.FileSource
+        return result
+
+    def profileActivity(self,**kwargs):
+        self.realObject.profileActivity(**kwargs)
+
+    @property
+    def errors(self) -> List[Any]:
+        result = self.realObject.errors
+        assert type(result) == list
+        return result
+
+    @property
+    def urlDocs(self) -> Dict[str, ModelDocument]:
+        result = self.realObject.urlDocs
+        assert type(result) == dict
+        return result
+
+    @property
+    def roleTypes(self) -> Dict[str, List[ModelObject]]:
+        result = self.realObject.roleTypes
+        assert type(result) == dict
+        return result
+
+    @property
+    def modelManager(self) -> Any:
+        result = self.realObject.modelManager
+        assert type(result) == arelle.ModelManager.ModelManager
+        return result
+
+    @property
+    def arelleUnitTests(self) -> Dict[str,str]:
+        result = self.realObject.arelleUnitTests
+        assert type(result) == dict
+        return result
+
+    def trace(self, codes, msg, **args) -> None:
+        self.realObject.trace(codes,msg,**args)
+
+    def debug(self, codes, msg, **args) -> None:
+        self.realObject.debug(codes,msg,**args)
+
+    def info(self, codes, msg, **args) -> None:
+        self.realObject.info(codes,msg,**args)        
+
+    def warn(self, codes, msg, **args) -> None:
+        self.realObject.warn(codes,msg,**args)
+
+    def error(self, codes, msg, **args) -> None:
+        self.realObject.error(codes,msg,**args)
+
+
+
+
+def identity(x):
+    return x
 
 # Constant
 maker = {arelle.ModelInstanceObject.ModelFact : ModelFact.of
@@ -1086,15 +1175,16 @@ maker = {arelle.ModelInstanceObject.ModelFact : ModelFact.of
            , arelle.ModelDtsObject.ModelType : ModelType.of
            , arelle.ModelDtsObject.ModelLink : ModelLink.of
            , arelle.ModelDtsObject.ModelRelationship : ModelRelationship.of
+           , arelle.ModelRelationshipSet.ModelRelationshipSet : ModelRelationshipSet.of
            , arelle.ModelDtsObject.ModelResource : ModelResource.of
            , arelle.ModelXbrl.ModelXbrl : ModelXbrl.of
            , arelle.ModelDocument.ModelDocument : ModelDocument.of
            , arelle.ModelInstanceObject.ModelDimensionValue : ModelDimensionValue.of
            , arelle.ModelObject.ModelObject : ModelObject.of
-           , arelle.ModelValue.QName : (lambda x : x)
-           , str : (lambda x: x)
-           , int : (lambda x: x)
-           , float : (lambda x: x)
+           , arelle.ModelValue.QName : identity
+           , str : identity
+           , int : identity
+           , float : identity
            , list : (lambda obj: [getProxy(o) for o in obj])
            , defaultdict : (lambda obj: defaultdict(obj.default_factory, {getProxy(k) : getProxy(v) for k, v in obj.items()}))
            , dict : (lambda obj: {getProxy(k) : getProxy(v) for k, v in obj.items()})
@@ -1159,10 +1249,10 @@ VALID_NO_CONTENT = arelle.XmlValidate.VALID_NO_CONTENT  # enum int
 
 
 def mainFunHook(modelXbrl, **ignore): 
-        # occurs upon <?arelle-unit-test location="EdgarRenderer/Filing.py#mainFun" action="AssertionError"?>
+    # occurs upon <?arelle-unit-test location="EdgarRenderer/Filing.py#mainFun" action="AssertionError"?>
     if "EdgarRenderer/Filing.py#mainFun" in modelXbrl.arelleUnitTests:
         action = modelXbrl.arelleUnitTests["EdgarRenderer/Filing.py#mainFun"]
-        objectConstructor = __dict__[action]
+        objectConstructor = getattr(modelXbrl,action,eval(action))
         raise objectConstructor("EdgarRenderer/Filing.py#mainFun")
 
 """

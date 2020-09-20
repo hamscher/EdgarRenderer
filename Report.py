@@ -634,7 +634,7 @@ class Report(object):
 
                 if len(rowOrColSet) > 0:
                     rowOrCol.footnoteNumberSet = rowOrColSet # set attribute of row or col
-                    
+
                     # go back through these sets and remove footnotes that have been promoted to rows or columns
                     for footnoteNumberSet in listOfFootnoteNumberSetsForNonEmptyCells:
                         footnoteNumberSet -= rowOrColSet
@@ -670,10 +670,10 @@ class Report(object):
                             if previousCell is not None:
                                 previousCell.showCurrencySymbol = previousCellCode is not None
                             cell.showCurrencySymbol = currentCellUnitID is not None
-                        
+
                         previousCellCode = currentCellUnitID
                         previousCell = cell
-    
+
                 if previousCell is not None:
                     previousCell.showCurrencySymbol = previousCellCode is not None
 
@@ -859,7 +859,7 @@ class Report(object):
             elif factAxisMember.memberIsDefault and self.cube.isTransposed:
                 substituteForEmptyHeading = factAxisMember.memberLabel      
             previousPseudoAxisNames += [pseudoAxisName]
-        
+
         if rowOrColStr == 'row':
             thisLayoutDirectionHasPeriodAxis = self.embedding.rowPeriodPosition != -1
         else:
@@ -983,7 +983,7 @@ class Report(object):
         SubElement(self.rootETree, 'DisplayLabelColumn').text = str(not self.cube.isUnlabeled).casefold()
 
         SubElement(self.rootETree, 'ShowElementNames').text = str(self.cube.isElements).casefold()
-        
+
         if self.RoundingOption is None:
             SubElement(self.rootETree, 'RoundingOption')
         else:
@@ -1030,7 +1030,7 @@ class Report(object):
             SubElement(contextRefETree, 'ContextID').text = context.id
             SubElement(contextRefETree, 'EntitySchema').text = context.entityIdentifier[0]
             SubElement(contextRefETree, 'EntityValue').text = context.entityIdentifier[1]
-            
+
             startEndContext = self.filing.startEndContextDict.get((context.startDatetime, context.endDatetime))
             if startEndContext is not None:
                 SubElement(contextRefETree, 'PeriodType').text = startEndContext.periodTypeStr
@@ -1128,7 +1128,7 @@ class Report(object):
                             reportSummary.uniqueAnchor = anchor
                             anchor['unique'] = True # flag makes it easier later to see when first same as unique
                             return
-            
+
 
     def writeHtmlAndOrXmlFiles(self, reportSummary):
         baseNameBeforeExtension = self.filing.fileNamePrefix + str(self.cube.fileNumber)
@@ -1212,7 +1212,7 @@ class Report(object):
         blugrd_r = cm.colors.LinearSegmentedColormap.from_list('blugrd_r',[bludk,blumd],256)
         redgrd = cm.colors.LinearSegmentedColormap.from_list('redgrd',[redmd,reddk],256)
         redgrd_r = cm.colors.LinearSegmentedColormap.from_list('redgrd_r',[reddk,redmd],256)
-    
+
 
         numYears = len(factList)
         if numYears > 20:
@@ -1506,10 +1506,10 @@ class Row(object):
 
         if self.factAxisMemberGroup is not None: # could be an abstract row or something like that
             otherAxisOnRows = any(fam.pseudoAxisName not in {'period', 'unit', 'primary'} for fam in self.factAxisMemberGroup.factAxisMemberRowList)
-    
+
             SubElement(rowETree, 'hasSegments').text = str(otherAxisOnRows).casefold()
             SubElement(rowETree, 'hasScenarios').text = 'false'
-        
+
             # BEGIN MCU
             mcuETree = SubElement(rowETree, 'MCU')
             #SubElement(mcuETree, 'KeyName')
@@ -1519,7 +1519,7 @@ class Row(object):
                     self.report.emitContextRef(mcuETree, self.factAxisMemberGroup.factAxisMemberRowList, self.context)
                 elif otherAxisOnRows:
                     self.report.emitContextRef(mcuETree, self.factAxisMemberGroup.factAxisMemberRowList, None)
-    
+
             if self.report.embedding.rowPrimaryPosition != -1 and self.factAxisMemberGroup.fact.unit is not None:
                 # the primary pseudoaxis is on the rows, so show the units for that fact
                 self.report.emitUPS(mcuETree, self.factAxisMemberGroup.fact.unit)
@@ -1626,7 +1626,7 @@ class Column(object):
                 if cell is not None and cell.showCurrencySymbol:
                     SubElement(columnETree, 'CurrencySymbol').text = cell.currencySymbol
                     break
-                
+
 
 
 

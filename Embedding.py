@@ -31,7 +31,7 @@ class FactAxisMember(object):
         self.axisMemberPositionTuple = axisMemberPositionTuple
         self.memberLabel = memberLabel
         self.memberIsDefault = memberIsDefault
-        
+
     def __str__(self):
         return "[{}={}]".format(self.pseudoAxisName, self.member)
 
@@ -112,7 +112,7 @@ class Embedding(object):
                 if axisQname in axes:  # the axes that have not been moved to rows already
                     self.localnamesMovedToColumns += [axisQname.localName]
                     self.commandTextListOfLists += [['column', axisQname, 'compact', '*']]
-            
+
             if len(self.cube.unitAxis) > 0:
                 self.commandTextListOfLists += [['column', 'unit', 'compact', '*']]
 
@@ -273,7 +273,7 @@ class Embedding(object):
         else:
             primaryRowOrColStr = 'col'
             primaryIndex = len(self.rowCommands) + self.columnPrimaryPosition
-            
+
         # if any typed dimensions, get values to order them
         for pseudoAxis, (giveMemGetPositionDict, ignore) in self.cube.axisAndMemberOrderDict.items():
             if brel.isQName(pseudoAxis) and "!?isTypedDimensionAxis?!" in giveMemGetPositionDict:

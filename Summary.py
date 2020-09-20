@@ -108,7 +108,7 @@ class Summary(object):
         self.referencePositionDict = dict()
         for i, r in enumerate(sorted(list(refSet))): # WcH 6/20/2016 stabilize output ordering.
             self.referencePositionDict[r] = i
-            
+
     @property
     def menuStyle(self):
         if self.hasRR: return 'RiskReturn'
@@ -132,7 +132,7 @@ class Summary(object):
             return self.rootETree
         except Exception as err:
             self.controller.logError(str(err) + str(traceback.format_tb(sys.exc_info()[2])))
-    
+
     def appendSummaryHeader(self):
         rootETree = self.rootETree
         brel.SubElement(rootETree, 'Version').text = self.controller.VERSION 
@@ -267,7 +267,7 @@ class Summary(object):
                         for (qname,context,lang,atts) in r.htmlAnchors:
                             if ('htmlAnchors' not in report): report['htmlAnchors'] = []
                             report['htmlAnchors'] += [{'qname':qname,'context':context,'lang':lang,'attributes':atts}]
-                        
+
                 for tagAa in s.tagDict.values():
                     qname = '{' + tagAa['nsuri'] + '}' + tagAa['localname']
                     numList = []
@@ -298,24 +298,24 @@ class InstanceSummary(object):
         self.hasPresentationLinkbase = []
         self.hasCalculationLinkbase = []
         self.footnoteCount = 0
-        
+
         contextSet = set(modelXbrl.contexts.values())
         contextsInUseSet = set()
         self.contextCount = 0
-        
+
         entitySet = set()
         entityInUseSet = set()
-        
+
         segmentSet = set()
         segmentsInUseSet = set()
         self.segmentCount = 0
         self.scenarioCount = 0
-        
+
         unitSet = set(modelXbrl.units)
         unitsInUseSet = set()
         self.unitCountDict = defaultdict(int)        
         self.unitsInUseCountDict = defaultdict(int)
-        
+
         conceptInUseSet = set()        
         primaryInUseSet = set()
         self.primaryCountDict = defaultdict(int) 
@@ -325,7 +325,7 @@ class InstanceSummary(object):
         self.axisInUseCountDict = defaultdict(int) 
         hiddenSet = set()
         self.hiddenCountDict = defaultdict(int)  # by Namespace
-        
+
         self.threshold = 80
         self.level1PolicyNote = []  # Actually there can only be one but this makes code more symmetric.
         self.level1OtherNotes = []
@@ -336,7 +336,7 @@ class InstanceSummary(object):
         self.instanceFiles = []
         self.inlineFiles = []
         self.otherXbrlFiles = []
-        
+
         self.customPrefix = None
         self.customNamespace = None
         self.roleDefinitionDict = dict()
@@ -388,7 +388,7 @@ class InstanceSummary(object):
                                   modelObject=doc, doctype=doc.xmlRootElement.localName, file=uri)
             self.dts[doctype][rl] += [f]
         self.dtsroots = self.instanceFiles + self.inlineFiles
-                
+
 #         self.hasRR = next((True for n in modelXbrl.namespaces()
 #                            if 'http://xbrl.sec.gov/rr/' in n), False)
 #         for fileUri, doc in sorted(modelXbrl.urlDocs.items()):
@@ -413,7 +413,7 @@ class InstanceSummary(object):
 #                         if namespace == ns:
 #                             self.customPrefix = prefix       
 #         self.dtsroots = self.instanceFiles + self.inlineFiles
-        
+
         for qname, facts in modelXbrl.factsByQname.items():
             primaryInUseSet.add(qname)
             for fact in facts:
@@ -422,14 +422,14 @@ class InstanceSummary(object):
                 if fact.unit is not None: unitsInUseSet.add(fact.unit)
                 if brel.qnIXbrl11Hidden in fact.ancestorQnames: 
                     hiddenSet.add(fact)
-                        
+
         for c in contextSet:
             for s in c.segDimValues.values():
                 segmentSet.update([(s.dimension,s.member)])
                 if s.dimension is not None: conceptInUseSet.add(s.dimension)
                 if s.member is not None: conceptInUseSet.add(s.member)
             entitySet.update({itag.text for itag in c.iter(tag=brel.cnXbrliIdentifier)})
-        
+
         for context in contextsInUseSet:
             entityInUseSet.add(context.entityIdentifier)
             for dimensionValue in context.dimensionValues:  # entity
@@ -438,7 +438,7 @@ class InstanceSummary(object):
                 if dimensionValue.isExplicit:
                     memberInUseSet.add(dimensionValue.memberQname)
                 axisInUseSet.add(dimensionValue.dimensionQname)
-                
+
 
         self.contextCount = len(contextSet)
         self.contextInUseCount = len(contextsInUseSet)
@@ -448,7 +448,7 @@ class InstanceSummary(object):
         self.entityInUseCount = len(entityInUseSet)
         self.scenarioCount = 0  # in case scenarios ever allowed.        
         self.tupleCount = 0  # likewise
-                
+
         for unit in unitsInUseSet:
             self.unitsInUseCountDict[Utils.hasCustomNamespace(unit)] += 1
         for unit in unitSet: 
@@ -461,26 +461,26 @@ class InstanceSummary(object):
             self.primaryCountDict[Utils.hasCustomNamespace(primary)] += 1
         for hidden in hiddenSet: 
             self.hiddenCountDict[hidden.qname.namespaceURI] += 1
-        
+
         self.footnoteCount = len(modelXbrl.relationshipSet('XBRL-footnotes').modelRelationships) 
         self.reportSummaryList = filing.reportSummaryList
         for r in self.reportSummaryList: 
             self.roleDefinitionDict[r.role] = r.longName
-            
+
         # Consider a concept in use if it appears as a fact or in a context explicitMember.
         summationItemRelationshipSet = modelXbrl.relationshipSet(brel.summationItem)
         summationItemRelationshipSet.loadModelRelationshipsTo()
         summationItemRelationshipSet.loadModelRelationshipsFrom()        
-        
+
         # Assume for simplicity that every concept in the calculation link base connects eventually to some fact
         # TODO: use graph traversal instead.
         conceptInUseSet = conceptInUseSet.union({concept for concept in summationItemRelationshipSet.modelRelationshipsFrom.keys()})
         conceptInUseSet = conceptInUseSet.union({concept for concept in summationItemRelationshipSet.modelRelationshipsTo.keys()})
-        
+
         parentChildRelationshipSet = modelXbrl.relationshipSet(brel.parentChild)
         parentChildRelationshipSet.loadModelRelationshipsTo()
         parentChildRelationshipSet.loadModelRelationshipsFrom()       
-        
+
         # Assume for the moment that every concept in the presentation link base connects eventually to some fact  
         # TODO: use graph traversal instead.    
         conceptInUseSet = conceptInUseSet.union({concept for concept in parentChildRelationshipSet.modelRelationshipsFrom.keys() if brel.isModelConcept(concept)})
@@ -510,7 +510,7 @@ class InstanceSummary(object):
                         r = tuple(r) # make it immutable and suitable as a key                      
                         self.refSet.add(r)
                         self.qnameReferenceDict[fromConcept.qname.clarkNotation].add(r)
-                
+
         # build a dictionary tree of the eventual JSON output.
         self.tagDict = {}
         for concept in conceptInUseSet:
@@ -651,7 +651,7 @@ class InstanceSummary(object):
                 else:
                     shortName = ", ".join(_fragments)
                 longName = longName + shortName
-                
+
                 self.rrSectionFacts.append( \
                     { 'firstAnchor': anchor
                         ,'groupType':'RR_Summaries'
@@ -873,18 +873,18 @@ def isDisclosure(longName):
 
 def isDocument(longName):
     return matchDocument.match(longName) is not None
-    
+
 def isParenthetical(longName):
     return matchParenthetical.match(longName) is not None
-    
+
 def isPolicy(longName):
     return matchPolicy.match(longName) is not None
-    
+
 def isTable(longName):
     return matchTable.match(longName) is not None
-    
+
 def isDetail(longName):
     return matchDetail.match(longName) is not None
-    
+
 def isUncategorized(longName):
     return longName == 'UncategorizedItems' 

@@ -399,7 +399,7 @@ class RenderingException(Exception):
         self.args = ( self.__repr__(), )
     def __repr__(self):
         return _('[{0}] exception {1}').format(self.code, self.message)
-    
+
 class Errmsg(object):
     def __init__(self, messageCode, message):
         self.msgCode = messageCode
